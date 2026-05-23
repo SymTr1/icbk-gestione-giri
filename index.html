@@ -54,7 +54,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .zone-colli{font-weight:700;font-size:12px;color:#333;text-align:right;white-space:nowrap;}
 .zone-kg{font-weight:700;font-size:13px;color:var(--accent);text-align:right;white-space:nowrap;}
 .zone-poli{font-size:12px;color:#666;text-align:right;white-space:nowrap;}
-.zone-kg.warn{color:var(--orange);}
+.zone-colli.warn,.zone-kg.warn,.zone-poli.warn{color:var(--orange);font-weight:700;}
 /* Custom zone styling */
 .zone-section.custom-zone .zone-table-header{background:rgba(124,58,237,0.05);}
 .zone-section.custom-zone .zone-title{color:#7c3aed;}
@@ -567,14 +567,12 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom
   var prodsDiv=el('div',{className:'zone-products'});
   Object.keys(cargo.productTotals).forEach(function(abbr){prodsDiv.appendChild(el('span',{className:'zp-item',textContent:cargo.productTotals[abbr].qty+'x'+abbr}));});
   header.appendChild(prodsDiv);
-  // Colli
+  // Colli, Kg, Polibox - all orange if overloaded
   var totalLoad=cargo.totalColli+cargo.totalPoli;
-  header.appendChild(el('span',{className:'zone-colli',textContent:cargo.totalColli+' colli'}));
-  // Kg (orange if overloaded)
-  var kgEl=el('span',{className:'zone-kg'+(totalLoad>=150?' warn':''),textContent:'Tot '+cargo.totalKg+' kg'});
-  header.appendChild(kgEl);
-  // Polibox
-  header.appendChild(el('span',{className:'zone-poli',textContent:cargo.totalPoli>0?cargo.totalPoli+' poli':''}));
+  var warnCls=totalLoad>=150?' warn':'';
+  header.appendChild(el('span',{className:'zone-colli'+warnCls,textContent:cargo.totalColli+' colli'}));
+  header.appendChild(el('span',{className:'zone-kg'+warnCls,textContent:'Tot '+cargo.totalKg+' kg'}));
+  header.appendChild(el('span',{className:'zone-poli'+warnCls,textContent:cargo.totalPoli>0?cargo.totalPoli+' poli':''}));
   header.appendChild(el('span',{className:'chevron',textContent:'\u25BC'}));
   section.appendChild(header);
 
