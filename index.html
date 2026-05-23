@@ -144,8 +144,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mapConsegne">Mappa Consegne</div><div class="tab" data-tab="mapZone">Mappa + Zone</div></div>
   <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta CSV</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
   <div class="tab-panel active" id="panel-giri"><div class="zone-filter-bar" id="zoneFilterBar"></div><div id="zonesContainer"></div></div>
-  <div class="tab-panel" id="panel-mapConsegne"><div class="map-wrapper"><div id="mapConsegne"></div></div></div>
-  <div class="tab-panel" id="panel-mapZone"><div class="map-wrapper"><div id="mapZone"></div></div><div class="split-container"><div class="split-left"><div class="split-label">TRASCINA DA QUI</div><div id="splitLeft"></div></div><div class="split-right"><div class="split-label">RILASCIA QUI (o viceversa)</div><div id="splitRight"></div></div></div></div>
+  <div class="tab-panel" id="panel-mapConsegne"><div class="zone-filter-bar" id="zoneFilterBarMap1"></div><div class="map-wrapper"><div id="mapConsegne"></div></div></div>
+  <div class="tab-panel" id="panel-mapZone"><div class="zone-filter-bar" id="zoneFilterBarMap2"></div><div class="map-wrapper"><div id="mapZone"></div></div><div class="split-container"><div class="split-left"><div class="split-label">TRASCINA DA QUI</div><div id="splitLeft"></div></div><div class="split-right"><div class="split-label">RILASCIA QUI (o viceversa)</div><div id="splitRight"></div></div></div></div>
 </div>
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div class="loading-text" id="loadingText">Geocoding indirizzi...</div><div class="loading-progress" id="loadingProgress"></div></div>
 <div class="toast" id="toast"></div>
@@ -170,7 +170,7 @@ var SEDE_ZONE='RITIRO IN DITTA';
 function isSedeAddress(a){a=a.toLowerCase();return/via\s+teramo\s+9/i.test(a)||/via\s+(eugenio\s+)?montale\s+(27|29)/i.test(a);}
 
 // ============================================================
-var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,activeZoneFilter='TUTTI';
+var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,activeZoneFilter='TUTTI',activeMapFilter1='TUTTI',activeMapFilter2='TUTTI';
 try{var c=localStorage.getItem('icbk_geocode_cache');if(c)geocodeCache=JSON.parse(c);}catch(e){}
 
 // ============================================================
@@ -358,58 +358,36 @@ document.getElementById('splitCloseBtn').addEventListener('click',function(){doc
 // ============================================================
 // RENDER ZONES
 // ============================================================
+function buildFilterBar(barId,currentFilter,onSelect){
+  var bar=document.getElementById(barId);if(!bar)return;
+  while(bar.firstChild)bar.removeChild(bar.firstChild);
+  var grouped={},unassigned=[];
+  orders.forEach(function(o){if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);});
+  // TUTTI
+  var allBtn=el('button',{className:'zone-filter-btn'+(currentFilter==='TUTTI'?' active':''),onClick:function(){onSelect('TUTTI');}});
+  allBtn.appendChild(document.createTextNode('TUTTI'));allBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+orders.length+')'}));bar.appendChild(allBtn);
+  // Zones in display order
+  var seen={};
+  ZONE_DISPLAY_ORDER.forEach(function(zn){if(seen[zn])return;seen[zn]=true;var c=(grouped[zn]||[]).length;if(c===0)return;
+    var btn=el('button',{className:'zone-filter-btn'+(currentFilter===zn?' active':''),onClick:function(){onSelect(zn);}});
+    btn.appendChild(document.createTextNode(zn));btn.appendChild(el('span',{className:'zf-count',textContent:' ('+c+')'}));bar.appendChild(btn);
+  });
+  Object.keys(grouped).forEach(function(zn){if(!seen[zn]&&zn!==SEDE_ZONE){var c=grouped[zn].length;if(c===0)return;
+    var btn=el('button',{className:'zone-filter-btn'+(currentFilter===zn?' active':''),onClick:function(){onSelect(zn);}});
+    btn.appendChild(document.createTextNode(zn));btn.appendChild(el('span',{className:'zf-count',textContent:' ('+c+')'}));bar.appendChild(btn);
+  }});
+  if(unassigned.length>0){var uBtn=el('button',{className:'zone-filter-btn'+(currentFilter==='NON ASSEGNATI'?' active':''),onClick:function(){onSelect('NON ASSEGNATI');}});uBtn.appendChild(document.createTextNode('N/A'));uBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+unassigned.length+')'}));bar.appendChild(uBtn);}
+  if(grouped[SEDE_ZONE]){var sBtn=el('button',{className:'zone-filter-btn'+(currentFilter===SEDE_ZONE?' active':''),onClick:function(){onSelect(SEDE_ZONE);}});sBtn.appendChild(document.createTextNode('RITIRO'));sBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+grouped[SEDE_ZONE].length+')'}));bar.appendChild(sBtn);}
+}
+
 function renderZones(containerId,filter,zoneFilter){
   filter=(filter||'').toLowerCase();zoneFilter=zoneFilter||'TUTTI';
   var container=document.getElementById(containerId);while(container.firstChild)container.removeChild(container.firstChild);
   var grouped={},unassigned=[];
   orders.forEach(function(o){if(filter){var s=(o.customer+' '+o.address+' '+o.products.map(function(p){return p.abbr;}).join(' ')).toLowerCase();if(s.indexOf(filter)===-1)return;}if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);});
 
-  // Build zone filter tabs (only for main zonesContainer)
-  if(containerId==='zonesContainer'){
-    var filterBar=document.getElementById('zoneFilterBar');
-    if(filterBar){
-      while(filterBar.firstChild)filterBar.removeChild(filterBar.firstChild);
-      var totalCount=orders.length;
-      // TUTTI tab
-      var allBtn=el('button',{className:'zone-filter-btn'+(zoneFilter==='TUTTI'?' active':''),onClick:function(){activeZoneFilter='TUTTI';renderAll();}});
-      allBtn.appendChild(document.createTextNode('TUTTI'));
-      allBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+totalCount+')'}));
-      filterBar.appendChild(allBtn);
-      // Zone tabs in display order
-      var seenTab={};
-      ZONE_DISPLAY_ORDER.forEach(function(zn){
-        if(seenTab[zn])return;seenTab[zn]=true;
-        var count=(grouped[zn]||[]).length;
-        if(count===0)return;
-        var btn=el('button',{className:'zone-filter-btn'+(zoneFilter===zn?' active':''),onClick:function(){activeZoneFilter=zn;renderAll();}});
-        btn.appendChild(document.createTextNode(zn));
-        btn.appendChild(el('span',{className:'zf-count',textContent:' ('+count+')'}));
-        filterBar.appendChild(btn);
-      });
-      // Remaining zones not in display order
-      Object.keys(grouped).forEach(function(zn){if(!seenTab[zn]&&zn!==SEDE_ZONE){
-        var count=grouped[zn].length;if(count===0)return;
-        var btn=el('button',{className:'zone-filter-btn'+(zoneFilter===zn?' active':''),onClick:function(){activeZoneFilter=zn;renderAll();}});
-        btn.appendChild(document.createTextNode(zn));btn.appendChild(el('span',{className:'zf-count',textContent:' ('+count+')'}));filterBar.appendChild(btn);
-      }});
-      // NON ASSEGNATI tab
-      if(unassigned.length>0){
-        var uBtn=el('button',{className:'zone-filter-btn'+(zoneFilter==='NON ASSEGNATI'?' active':''),onClick:function(){activeZoneFilter='NON ASSEGNATI';renderAll();}});
-        uBtn.appendChild(document.createTextNode('NON ASSEGNATI'));uBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+unassigned.length+')'}));filterBar.appendChild(uBtn);
-      }
-      // RITIRO IN DITTA tab
-      if(grouped[SEDE_ZONE]){
-        var sBtn=el('button',{className:'zone-filter-btn'+(zoneFilter===SEDE_ZONE?' active':''),onClick:function(){activeZoneFilter=SEDE_ZONE;renderAll();}});
-        sBtn.appendChild(document.createTextNode('RITIRO'));sBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+(grouped[SEDE_ZONE]||[]).length+')'}));filterBar.appendChild(sBtn);
-      }
-    }
-  }
-
-  // Render zones (filtered or all)
   var seen={};
-  ZONE_DISPLAY_ORDER.forEach(function(zn){
-    if(grouped[zn]&&!seen[zn]){seen[zn]=true;if(zoneFilter==='TUTTI'||zoneFilter===zn)container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));}
-  });
+  ZONE_DISPLAY_ORDER.forEach(function(zn){if(grouped[zn]&&!seen[zn]){seen[zn]=true;if(zoneFilter==='TUTTI'||zoneFilter===zn)container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));}});
   Object.keys(grouped).forEach(function(zn){if(!seen[zn]&&zn!==SEDE_ZONE&&(zoneFilter==='TUTTI'||zoneFilter===zn))container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));});
   if(unassigned.length>0&&(zoneFilter==='TUTTI'||zoneFilter==='NON ASSEGNATI'))container.appendChild(buildZoneSection('NON ASSEGNATI',unassigned,'#f87171',true,false));
   if(grouped[SEDE_ZONE]&&(zoneFilter==='TUTTI'||zoneFilter===SEDE_ZONE))container.appendChild(buildZoneSection(SEDE_ZONE,grouped[SEDE_ZONE],ZONE_COLORS[SEDE_ZONE],false,true));
@@ -465,14 +443,41 @@ function updateHeaderStats(){var stats=document.getElementById('headerStats');wh
 function buildPopupContent(o){var l='<div class="popup-title">'+escTxt(o.customer)+(o.splitPart?' <small>'+o.splitPart+'/'+o.splitTotal+'</small>':'')+'</div><div>';o.products.forEach(function(p){l+='<span class="popup-product"><b>['+p.quantity+' x '+escTxt(p.abbr)+']</b></span>';});l+='</div><div class="popup-address">'+escTxt(o.address)+'</div>';if(o.zone)l+='<div class="popup-zone">Zona: '+escTxt(o.zone)+'</div>';l+=o.isNP?'<div class="popup-amount popup-np">NP</div>':'<div class="popup-amount">\u20AC'+o.total.toFixed(2)+'</div>';return l;}
 function initMapConsegne(){if(mapConsegne)return;mapConsegne=L.map('mapConsegne',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapConsegne);mapConsegne.on('click',function(){mapConsegne.scrollWheelZoom.enable();});mapConsegne.on('mouseout',function(){mapConsegne.scrollWheelZoom.disable();});}
 function initMapZone(){if(mapZone)return;mapZone=L.map('mapZone',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapZone);mapZone.on('click',function(){mapZone.scrollWheelZoom.enable();});mapZone.on('mouseout',function(){mapZone.scrollWheelZoom.disable();});ZONES.forEach(function(z){L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:2,fillOpacity:.15}).addTo(mapZone).bindTooltip(z.name,{permanent:false,direction:'center'});});}
-function refreshMapMarkers(map,arr){arr.forEach(function(m){map.removeLayer(m);});arr.length=0;orders.forEach(function(o){if(!o.lat||!o.lng)return;var zc=o.zone?(ZONE_COLORS[o.zone]||'#4f8cff'):'#f87171';var m=L.circleMarker([o.lat,o.lng],{radius:7,color:'#fff',weight:2,fillColor:zc,fillOpacity:.9}).addTo(map);m.bindPopup(buildPopupContent(o),{maxWidth:300});arr.push(m);});}
+function refreshMapMarkers(map,arr,zoneFilter){
+  zoneFilter=zoneFilter||'TUTTI';
+  arr.forEach(function(m){map.removeLayer(m);});arr.length=0;
+  orders.forEach(function(o){
+    if(!o.lat||!o.lng)return;
+    if(zoneFilter!=='TUTTI'){
+      if(zoneFilter==='NON ASSEGNATI'){if(o.zone)return;}
+      else{if(o.zone!==zoneFilter)return;}
+    }
+    var zc=o.zone?(ZONE_COLORS[o.zone]||'#4f8cff'):'#f87171';
+    var m=L.circleMarker([o.lat,o.lng],{radius:7,color:'#fff',weight:2,fillColor:zc,fillOpacity:.9}).addTo(map);
+    m.bindPopup(buildPopupContent(o),{maxWidth:300});arr.push(m);
+  });
+}
 
 // ============================================================
 // DRAG & DROP
 // ============================================================
 var draggedOrderId=null;
 function attachDrag(){document.querySelectorAll('.orders-table tr[draggable]').forEach(function(row){row.addEventListener('dragstart',function(e){draggedOrderId=this.getAttribute('data-order-id');this.classList.add('dragging');e.dataTransfer.effectAllowed='move';});row.addEventListener('dragend',function(){this.classList.remove('dragging');document.querySelectorAll('.zone-section').forEach(function(s){s.classList.remove('drag-target');});});});document.querySelectorAll('.zone-section').forEach(function(section){section.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';section.classList.add('drag-target');});section.addEventListener('dragleave',function(){section.classList.remove('drag-target');});section.addEventListener('drop',function(e){e.preventDefault();section.classList.remove('drag-target');var tz=section.getAttribute('data-zone');if(!draggedOrderId||!tz)return;var order=orders.find(function(o){return o.id===draggedOrderId;});if(order){var old=order.zone||'NON ASSEGNATI';order.zone=tz==='NON ASSEGNATI'?null:tz;order.isSede=(order.zone===SEDE_ZONE);renderAll();showToast(order.customer+': '+old+' \u2192 '+tz);}draggedOrderId=null;});});}
-function renderAll(){var f=document.getElementById('searchInput').value;renderZones('zonesContainer',f,activeZoneFilter);renderZones('splitLeft',f,'TUTTI');renderZones('splitRight',f,'TUTTI');updateHeaderStats();if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers);if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers);}
+function renderAll(){
+  var f=document.getElementById('searchInput').value;
+  // Filter bars
+  buildFilterBar('zoneFilterBar',activeZoneFilter,function(zn){activeZoneFilter=zn;renderAll();});
+  buildFilterBar('zoneFilterBarMap1',activeMapFilter1,function(zn){activeMapFilter1=zn;renderAll();});
+  buildFilterBar('zoneFilterBarMap2',activeMapFilter2,function(zn){activeMapFilter2=zn;renderAll();});
+  // Tables
+  renderZones('zonesContainer',f,activeZoneFilter);
+  renderZones('splitLeft',f,activeMapFilter2);
+  renderZones('splitRight',f,activeMapFilter2);
+  updateHeaderStats();
+  // Maps with zone filter
+  if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers,activeMapFilter1);
+  if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers,activeMapFilter2);
+}
 
 // TABS + TOOLBAR
 document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});this.classList.add('active');document.getElementById('panel-'+this.getAttribute('data-tab')).classList.add('active');if(this.getAttribute('data-tab')==='mapConsegne'){initMapConsegne();setTimeout(function(){mapConsegne.invalidateSize();refreshMapMarkers(mapConsegne,mapConsegneMarkers);},100);}if(this.getAttribute('data-tab')==='mapZone'){initMapZone();setTimeout(function(){mapZone.invalidateSize();refreshMapMarkers(mapZone,mapZoneMarkers);},100);}});});
