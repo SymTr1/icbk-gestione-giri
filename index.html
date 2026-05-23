@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ICBK - Gestione Giri Consegne</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --bg: #0f1117;
@@ -17,17 +19,17 @@
   --green: #34d399;
   --red: #f87171;
   --orange: #fb923c;
-  --purple: #a78bfa;
   --np-bg: #2d1f3d;
   --np-text: #c084fc;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; }
 
+/* HEADER */
 .header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 16px 24px;
+  padding: 12px 20px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -35,285 +37,178 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
   top: 0;
   z-index: 100;
 }
-.header h1 { font-size: 20px; font-weight: 700; }
+.header h1 { font-size: 18px; font-weight: 700; white-space: nowrap; }
 .header h1 span { color: var(--accent); }
-.header-stats {
-  display: flex;
-  gap: 20px;
-  margin-left: auto;
-  font-size: 13px;
-}
-.header-stat { display: flex; align-items: center; gap: 6px; color: var(--text2); }
-.header-stat strong { color: var(--text); font-size: 15px; }
+.header-stats { display: flex; gap: 16px; margin-left: auto; font-size: 12px; }
+.header-stat { display: flex; align-items: center; gap: 4px; color: var(--text2); }
+.header-stat strong { color: var(--text); font-size: 14px; }
 
+/* UPLOAD */
 .upload-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  padding: 40px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 60vh; padding: 40px;
 }
 .upload-box {
-  border: 2px dashed var(--border);
-  border-radius: 16px;
-  padding: 60px 80px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s;
-  background: var(--surface);
+  border: 2px dashed var(--border); border-radius: 16px; padding: 60px 80px;
+  text-align: center; cursor: pointer; transition: all .2s; background: var(--surface);
 }
-.upload-box:hover, .upload-box.dragover {
-  border-color: var(--accent);
-  background: var(--surface2);
-}
+.upload-box:hover, .upload-box.dragover { border-color: var(--accent); background: var(--surface2); }
 .upload-box svg { width: 48px; height: 48px; color: var(--accent); margin-bottom: 16px; }
 .upload-box h2 { font-size: 18px; margin-bottom: 8px; }
 .upload-box p { color: var(--text2); font-size: 14px; }
 
-.main { display: none; padding: 20px; }
+/* MAIN */
+.main { display: none; }
 .main.active { display: block; }
 
+/* TABS */
+.tabs {
+  display: flex; gap: 0; background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 20px; position: sticky; top: 49px; z-index: 90;
+}
+.tab {
+  padding: 10px 20px; cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 500;
+  border-bottom: 2px solid transparent; transition: all .15s; user-select: none;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* TOOLBAR */
 .toolbar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  align-items: center;
+  display: flex; gap: 10px; padding: 12px 20px; flex-wrap: wrap; align-items: center;
+  background: var(--surface); border-bottom: 1px solid var(--border);
 }
 .toolbar input[type="text"] {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  width: 260px;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 12px; border-radius: 6px; font-size: 12px; width: 240px;
 }
 .btn {
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all .15s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-size: 12px; cursor: pointer; transition: all .15s;
 }
-.btn:hover { background: var(--surface2); border-color: var(--accent); }
+.btn:hover { border-color: var(--accent); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent2); }
 
-.zones-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-  gap: 16px;
-}
+/* TAB PANELS */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 
-.zone-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
+/* MAP */
+.map-wrapper { height: 500px; position: relative; }
+#mapConsegne, #mapZone { width: 100%; height: 100%; }
+
+/* ZONE TABLES */
+.zone-section { margin: 0; }
+.zone-table-header {
+  background: var(--surface); padding: 10px 20px; display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--border); border-top: 1px solid var(--border); cursor: pointer; user-select: none;
 }
-.zone-header {
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  user-select: none;
-}
-.zone-header:hover { background: var(--surface2); }
-.zone-color {
-  width: 14px; height: 14px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-.zone-name { font-weight: 600; font-size: 14px; flex: 1; }
+.zone-table-header:hover { background: var(--surface2); }
+.zone-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.zone-title { font-weight: 600; font-size: 14px; }
 .zone-badge {
-  background: var(--surface2);
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  color: var(--text2);
-  font-weight: 500;
+  background: var(--surface2); padding: 2px 10px; border-radius: 12px;
+  font-size: 11px; color: var(--text2); margin-left: 8px;
 }
+.zone-totals {
+  margin-left: auto; display: flex; gap: 12px; font-size: 12px; color: var(--text2);
+}
+.zone-totals strong { color: var(--text); }
+.chevron { transition: transform .2s; font-size: 14px; color: var(--text2); margin-left: 8px; }
+.zone-table-header.collapsed .chevron { transform: rotate(-90deg); }
 
-.zone-summary {
-  padding: 10px 18px;
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  border-bottom: 1px solid var(--border);
-  background: rgba(79, 140, 255, 0.03);
+/* TABLE */
+.orders-table {
+  width: 100%; border-collapse: collapse; table-layout: fixed;
 }
-.zone-summary-item {
-  font-size: 12px;
-  color: var(--text2);
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.orders-table th {
+  background: var(--surface2); padding: 6px 10px; text-align: left; font-size: 11px;
+  color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border); position: sticky; white-space: nowrap;
 }
-.zone-summary-item strong { color: var(--text); font-size: 13px; }
+.orders-table td {
+  padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.orders-table tr:hover td { background: var(--surface2); }
+.orders-table tr[draggable="true"] { cursor: grab; }
+.orders-table tr.dragging td { opacity: 0.4; }
 
-.zone-orders { max-height: 500px; overflow-y: auto; }
+/* Column widths */
+.col-customer { width: 18%; }
+.col-products { width: 30%; }
+.col-address { width: 22%; }
+.col-notes { width: 15%; }
+.col-amount { width: 8%; text-align: right; }
+.col-zone { width: 7%; }
 
-.order-row {
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-  display: grid;
-  grid-template-columns: 1fr 2fr 1.5fr 80px;
-  gap: 8px;
-  align-items: center;
-  transition: background .1s;
-  cursor: grab;
+.orders-table td.col-amount { text-align: right; font-weight: 600; }
+.np-badge {
+  display: inline-block; background: var(--np-bg); color: var(--np-text);
+  padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
 }
-.order-row:hover { background: var(--surface2); }
-.order-row.dragging { opacity: 0.4; background: var(--surface2); }
-.order-row.drag-over { border-top: 2px solid var(--accent); }
+.product-tag {
+  display: inline-block; background: var(--surface2); padding: 1px 5px; border-radius: 3px;
+  margin-right: 3px; margin-bottom: 1px; font-size: 11px; white-space: nowrap;
+}
+.notes-text { font-size: 11px; color: var(--orange); font-style: italic; }
 
-.order-customer {
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.order-products {
-  color: var(--text2);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.order-address {
-  color: var(--text2);
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.order-amount {
-  text-align: right;
-  font-weight: 600;
-  font-size: 13px;
-}
-.order-amount.np {
-  color: var(--np-text);
-  background: var(--np-bg);
-  border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 12px;
-  text-align: center;
-}
+.zone-table-content.collapsed { display: none; }
 
-.order-notes {
-  font-size: 11px;
-  color: var(--orange);
-  margin-top: 2px;
-  font-style: italic;
+/* ZONE DROP TARGET */
+.zone-section.drag-target .zone-table-header { background: rgba(79,140,255,0.15); border-color: var(--accent); }
+
+/* TOTALS BAR */
+.zone-product-totals {
+  padding: 6px 20px; background: rgba(79,140,255,0.05); border-bottom: 1px solid var(--border);
+  display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text2);
 }
+.zone-product-totals strong { color: var(--text); }
 
-.zone-card.drag-target { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,140,255,0.3); }
-
-.unassigned-zone .zone-header { background: rgba(248,113,113,0.1); }
-.unassigned-zone .zone-color { background: var(--red) !important; }
-
-/* Loading overlay */
+/* Loading */
 .loading-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(15,17,23,0.85);
-  z-index: 200;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 16px;
+  display: none; position: fixed; inset: 0; background: rgba(15,17,23,0.85);
+  z-index: 200; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
 }
 .loading-overlay.active { display: flex; }
-.spinner {
-  width: 40px; height: 40px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
+.spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text { color: var(--text2); font-size: 14px; }
 .loading-progress { color: var(--text); font-size: 13px; font-weight: 500; }
 
-/* Map panel */
-.map-panel {
-  display: none;
-  margin-bottom: 20px;
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 20px; font-size: 13px; z-index: 300;
+  transform: translateY(100px); opacity: 0; transition: all .3s;
 }
-.map-panel.active { display: block; }
-.map-container {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  height: 450px;
-}
+.toast.show { transform: translateY(0); opacity: 1; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text2); }
 
-/* Toast */
-.toast {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 20px;
-  font-size: 13px;
-  color: var(--text);
-  z-index: 300;
-  transform: translateY(100px);
-  opacity: 0;
-  transition: all .3s;
-}
-.toast.show { transform: translateY(0); opacity: 1; }
-
-/* Zone collapsed */
-.zone-orders.collapsed { display: none; }
-.zone-summary.collapsed { display: none; }
-.zone-header .chevron { transition: transform .2s; font-size: 18px; color: var(--text2); }
-.zone-header.collapsed .chevron { transform: rotate(-90deg); }
-
-.product-tag {
-  display: inline-block;
-  background: var(--surface2);
-  padding: 1px 6px;
-  border-radius: 4px;
-  margin-right: 4px;
-  font-size: 11px;
-  color: var(--text);
-  white-space: nowrap;
-}
-
-/* Print styles */
+/* Print */
 @media print {
-  .header, .toolbar, .upload-area, .map-panel, .btn { display: none !important; }
-  .main { display: block !important; padding: 0; }
-  .zones-grid { display: block; }
-  .zone-card { break-inside: avoid; margin-bottom: 12px; border: 1px solid #ccc; }
-  .zone-orders { max-height: none; }
-  body { background: #fff; color: #000; }
-  .zone-header, .zone-summary, .order-row { background: #fff !important; color: #000 !important; }
-  .order-products, .order-address, .zone-summary-item { color: #444 !important; }
+  .header, .tabs, .toolbar, .upload-area, .map-wrapper, .btn { display: none !important; }
+  .main, .tab-panel { display: block !important; }
+  body { background: #fff; color: #000; font-size: 10px; }
+  .orders-table th { background: #eee !important; color: #000 !important; }
+  .orders-table td { color: #000 !important; }
+  .zone-table-header { background: #f5f5f5 !important; color: #000 !important; }
+  .zone-product-totals { background: #fafafa !important; }
 }
+
+/* Leaflet popup override */
+.leaflet-popup-content { font-size: 12px; line-height: 1.4; }
+.popup-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+.popup-products { margin: 4px 0; }
+.popup-product { display: block; font-size: 11px; color: #555; }
+.popup-address { font-size: 11px; color: #888; margin-top: 4px; }
+.popup-np { color: #9333ea; font-weight: 700; }
+.popup-amount { font-weight: 600; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -333,9 +228,14 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 </div>
 
 <div class="main" id="mainView">
+  <div class="tabs">
+    <div class="tab active" data-tab="giri">Giri per Zona</div>
+    <div class="tab" data-tab="mapConsegne">Mappa Consegne</div>
+    <div class="tab" data-tab="mapZone">Mappa + Zone</div>
+  </div>
+
   <div class="toolbar">
     <input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto...">
-    <button class="btn" id="btnMap">Mappa Zone</button>
     <button class="btn" id="btnExpand">Espandi Tutti</button>
     <button class="btn" id="btnCollapse">Comprimi Tutti</button>
     <button class="btn" id="btnPrint">Stampa</button>
@@ -343,11 +243,21 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
     <button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button>
   </div>
 
-  <div class="map-panel" id="mapPanel">
-    <div class="map-container" id="mapContainer"></div>
+  <!-- TAB: Giri per Zona -->
+  <div class="tab-panel active" id="panel-giri">
+    <div id="zonesContainer"></div>
   </div>
 
-  <div class="zones-grid" id="zonesGrid"></div>
+  <!-- TAB: Mappa Consegne -->
+  <div class="tab-panel" id="panel-mapConsegne">
+    <div class="map-wrapper"><div id="mapConsegne"></div></div>
+  </div>
+
+  <!-- TAB: Mappa + Zone -->
+  <div class="tab-panel" id="panel-mapZone">
+    <div class="map-wrapper"><div id="mapZone"></div></div>
+    <div id="zonesContainerMap"></div>
+  </div>
 </div>
 
 <div class="loading-overlay" id="loadingOverlay">
@@ -355,19 +265,16 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
   <div class="loading-text">Geocoding indirizzi...</div>
   <div class="loading-progress" id="loadingProgress"></div>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
 // ============================================================
-// CONFIG: NP Clients, Product Abbreviations, Zone Polygons
+// CONFIG
 // ============================================================
-
-const NP_CLIENTS = new Set([
+var NP_CLIENTS = new Set([
 "&MANGIA S.R.L.","10CC GLOBAL SHOP S.R.L.","3G S.R.L.","6AM SNC DI TOZZO, DELL'ORTO, RUBINO, ALAMPI E RAVANELLI","AD MAIORA S.R.L.","AD MELIORA S.A.S. DI CIOTTI MARIA GIOVANNA & C.","AL.MA.SI S.R.L.","ALCATRAZ SRL","ALTIORLAB SRL","ALTRIMENTI SRL SEMPLIFICATA","AMEN MILANO SRL","ANDREA BENOLLI ED ENRICO CONTRO & C.","ARCA MILANO S.R.L.S.","Arte del Vino srl","Associazione Culturale King Room","Associazione Sportiva Dilettantistica Velasca","ASST Centro Specialistico Ortopedico Traumatologico Gaetano Pini/CTO","AWA S.R.L.","BARMAN MILANO EVENTI SRL","BATCH S.R.L.","BE BARMAN EVENTI MILANO S.R.L.","BEIT EVENTS S.R.L.","BERBERE' S.R.L.","BEREITALIANO S.R.L.","BETTER DAYS S.R.L. IMPRESA CULTURALE E CREATIVA","BIBE S.R.L.","BIG MAMMA TRATTORIE SRL","BL DATA S.N.C. DI L. DAINOTTO & B. DE MEO","BM clienti esterni NP","Boti Srl","BRE SRL","BREMA GROUP S.P.A.","BULGHERONI CLAUDIO S.R.L.","BZ SRL","C'ERA UNA VOLTA NONNA MARIA DI GRIMOLDI LUCA","CAFFE' MEGARIDE DI DE LUCA BOSSO MASSIMO","CAMPARINO SRL","CARRO SOCIAL CLUB SRL","Cartabianca S.r.l.","CASA DI CURA IGEA SPA","CASA DI CURA PRIVATA DEL POLICLINICO SPA","CASUAL FOOD S.R.L.","CICININ SRL","CIRCOLO ARCI NOVA ARCORE BLOB AMMINISTRAZIONE","CLINICA POLISPECIALISTICA SAN CARLO S.R.L.","CMB MUSIC SRL","CMC SRL","Compagnia dei Caraibi SPA","COOPERATIVA SOCIALE CIRCOLO FAMIGLIARE DI UNITA' PROLETARIA","COPPELLE MILANO S.R.L.","CROCCA S.R.L.","DAAB S.N.C. DI ALAMPI FABIO E DELL'ORTO LUCA","Davide Campari - MILANO N.V","DM SUMMER IPA S.R.L.","DM SUMMER MOROSINI","DOLCE & GABBANA S.R.L.","DOPPIO MALTO S.P.A.","DRINK & TASTE S.R.L.","DUEPUNTOZERO S.R.L.","EL PRESTIN DEL CANTUN SNC DI MANZONI Giovanni Battista & C.","ENRICO BARTOLINI S.R.L. UNIPERSONALE","FARM 65 S.R.L.","Favre Marcello","Ferraro Bruno Salvatore","FISIO 360 SRL","FLORESTA SOCIETA' AGRICOLA S.R.L.","Fondazione IRCCS \"Ca' - Granda Ospedale Maggiore Policlinico\"","FONDAZIONE ISTITUTO FIRC DI ONCOLOGIA MOLECOLARE IN BREVE IFOM","FONDAZIONE OPERA SAN CAMILLO","Food as Therapy S.r.l","FOODFELLAS SRL","FORNO CANTONI SRL","FRED MILANO S.R.L.S.","FRIOSTAR S.R.L.","FUTURO S.R.L. Unipersonale","GESTO SOCIETA' BENEFIT S.R.L.","GREENERY SRL","GREM SRL","Hellodi Srl","HOCUS POCUS S.R.L.","HQ SRL","I GENOVASCHI SRL","ICE GROUP - SOCIETA' A RESPONSABILITA' LIMITATA","Idea Ristorazione Srl","IDEFIX S.R.L.","IDEM Srls","IL GRANELLO DON LUIGI MONZA COOPERATIVA SOCIALE","IL PORTICHETTO S.A.S. DI SACCO ELENA E C.","ISLA SRL","IT RESTAURANT MILAN S.R.L.","ITER SRL","JASMINE S.A.S. DI ALI KHALED & C.","JOJOLLY S.R.L. SOCIETA' BENEFIT","KAMPAAY S.R.L.","KETCHUP S.R.L.","KING CUP ITALIA S.R.L.","LA ROCCA S.R.L.","LOM DOPOLAVORO S.R.L.","LRG S.R.L","M.POINT DI MONACO MARIA MARILU'","MA.NI FOOD S.A.S. DI MASSIMO BARONI, NICOLA DELFINO & C.","MADE SRL","Madeleine Snc","MAGMA SRL","MAIO SRL","MAMA SRL - Mom caf\u00e8","MANIFA S.R.L.","MAPA SRL","MARCHESI 1824 S.R.L.","MARCO LAWANDEY EL KOMOS VIOLETTE","MARE FOOD LAB S.R.L.","Marina srls","MARTAS S.B. S.R.L.","MARTINI SPA","MC GROUP SRL SOCIET\u00c1 BENEFIT","Mec Service srl","MGL CATERING S.R.L.","MICHELI ASSOCIATI SRL","MICRO ONDA GROUP S.A.S. DI GRASSINI DARIO EUGENIO & C.","MIGLIAVACCA HVK 2 SRL","MILANO CORTINA 2026","MILLENNIUM SRLS","MISCUSI BOCCONI","MISCUSI CADORNA","MISCUSI CINQUE GIORNATE","MISCUSI COLONNE","MISCUSI MINNITI ISOLA","MISCUSI S.R.L.","MISCUSI STAZIONE CENTRALE","miscusi uffici","Mistertea Srls Unipersonale","MOTO&ROLA S.R.L.","MOTOWN S.R.L.","MR ICE S.R.L.","MR. POT STILL SRL","MSGM SRL","MWF SRL","MY WAY S.N.C. DI PALAZZO RICCARDO & C.","NATO RAPID DEPLOYABLE CORPS - ITALY","NEOS S.P.A.","NEW TEAM S.R.L.","NEWBLEND S.R.L.","NH ITALIA S.P.A.","NO.KIA S.R.L.","NOLOOP SRL","non usare pi\u00f9-ROYAL NOLEGGIO SAS DI SHEHADEH AYED E C.","Nuovo Rinascimento Impresa Sociale","OFFICINA DEL GUSTO SRL","OROBIA 26 S.R.L.","P. & B. LINE S.a.s.","P.IVA CESSATA - NON USARE MAI PIU - MONTORFANO DANIELE","PABLO BROS S.R.L.","PERINI MICHELE","PESCATORUM S.R.L. SB\" IN LIQUIDAZIONE","PING-LING SAS DI LI SUIPING","PIZZIUM S.P.A.","POLICLINICO SAN DONATO S.P.A.","Raggr.Ordini e scollegare e poi fatturare una fattura separata a we are you srl","RHA VISION S.R.L.","RIPA S.R.L.","RIZZA CHRISTIAN","RL FASHIONS OF EUROPE S.R.L.","ROYAL NOLEGGIO SRL","S & P SRL","SAN S.R.L. - Ruiz","Sanctuary e Voodoo bar Milano Srl","SBIELLATI S.R.L.","SERENA BARBIERI SRL","Seven Srl","SG4SG SRL","SISTEMA HOTELS EXPO 2015 SRL","SISTERS S.R.L.","SMASH COCKTAIL SAS DI DANIELE MONTORFANO & C.","SODEXO ITALIA S.P.A.","SOGNI S.R.L.","Spice di M. V. Sukyas","STAR GESTIONI S.R.L.","STILL COMPANY SRL","SUCCULENTA SRL","TASTE & VENUE CONSULTING SRL","THIRSTY SRL","TRAPIZZINO S.R.L.","TRIPSTILLERY MILANO S.R.L.","TRIPSTILLERY NAVIGLI S.R.L.","TUFRE' S.R.L.","Turne Eventi Srl","TURNE' SRL","TUTTI PER UNO S.R.L.","UNCLE S.R.L.","UNSEENBAR DI MILO OCCHIPINTI","VAPORE S.R.L.","VARGROS S.R.L.","VERTIGO SRL","VESPER S.R.L.","VI.CO.OK SRL","VIBE & FLAVOR S.R.L.","WAVE LOUNGE BAR DI SANALITRO SAMUEL","We Are You srl","WHITE RABBIT SRLS","WINELIVERY SRL","YOU SRL","ZINC DI BENOLLI ANDREA"
 ].map(function(s) { return s.trim().toUpperCase(); }));
 
-// Product name to abbreviation mapping (from xlsx)
 var PRODUCT_ABBREVIATIONS = {
   'Ghiaccio - Clear 6,5 x 6,5': 'Clear 6,5',
   'Ghiaccio Lastra -': 'Lastra20X20',
@@ -411,38 +318,41 @@ var PRODUCT_ABBREVIATIONS = {
   'Cucchiani immersione': 'Cucch.Imm.'
 };
 
-// Zone polygons extracted from KML (lng, lat)
 var ZONES = [
   { name: 'DUOMO', color: '#555555', polygon: [[9.1884713,45.464915],[9.1883533,45.4638088],[9.1885698,45.463684],[9.1878168,45.4630413],[9.1870443,45.4623791],[9.1873877,45.4621157],[9.1895176,45.4617816],[9.1906171,45.4617244],[9.1935088,45.463723],[9.194131,45.4638886],[9.1936375,45.4644906],[9.1929723,45.4647464],[9.188552,45.4647615],[9.1884713,45.464915]] },
-  { name: 'DUOMO-CORDUSIO', color: '#555555', polygon: [[9.1862187,45.4651156],[9.1883533,45.4638088],[9.1884802,45.4648347],[9.1882302,45.4656042],[9.1870731,45.46558],[9.1865367,45.4650684],[9.1862187,45.4651156]] },
+  { name: 'DUOMO-CORDUSIO', color: '#666666', polygon: [[9.1862187,45.4651156],[9.1883533,45.4638088],[9.1884802,45.4648347],[9.1882302,45.4656042],[9.1870731,45.46558],[9.1865367,45.4650684],[9.1862187,45.4651156]] },
   { name: 'CENTRO SUD-OVEST', color: '#A52714', polygon: [[9.178035,45.4639994],[9.1777766,45.4599816],[9.1839135,45.4598161],[9.1885698,45.463684],[9.1861236,45.4651738],[9.178035,45.4639994]] },
   { name: 'CENTRO-NORD-OVEST', color: '#817717', polygon: [[9.1861236,45.4651738],[9.1865367,45.4650684],[9.1870731,45.46558],[9.187041,45.4659036],[9.1861504,45.4661143],[9.177957,45.4670832],[9.1765482,45.4658584],[9.178035,45.4639994],[9.1861236,45.4651738]] },
   { name: 'CENTRO-NORD', color: '#006064', polygon: [[9.1870731,45.46558],[9.1881003,45.4655783],[9.189377,45.4669364],[9.1900583,45.4674556],[9.1913807,45.4686172],[9.1950715,45.4721234],[9.1949507,45.4722163],[9.1922048,45.4726208],[9.1920331,45.4723801],[9.1894152,45.4726509],[9.1835788,45.4716879],[9.1838792,45.4702734],[9.1836646,45.4681968],[9.1823343,45.467324],[9.1805748,45.4667822],[9.1861504,45.4661143],[9.187041,45.4659036],[9.1870731,45.46558]] },
   { name: 'CENTRO-NORD-EST', color: '#AFB42B', polygon: [[9.1881003,45.4655783],[9.1928757,45.4667061],[9.1938413,45.4669393],[9.1937876,45.4672102],[9.1978968,45.4695276],[9.1950715,45.4721234],[9.189377,45.4669364],[9.1881003,45.4655783]] },
-  { name: 'CENTRO-EST', color: '#87CEAC', polygon: [[9.1978968,45.4695276],[9.1937876,45.4672102],[9.1938413,45.4669393],[9.1882302,45.4656042],[9.188552,45.4647615],[9.1929723,45.4647464],[9.1936375,45.4644906],[9.194131,45.4638886],[9.1946675,45.4634221],[9.195397,45.4623234],[9.1971995,45.4615559],[9.1999288,45.4649931],[9.2007871,45.4668592],[9.1978968,45.4695276]] },
+  { name: 'CENTRO-EST', color: '#2E7D32', polygon: [[9.1978968,45.4695276],[9.1937876,45.4672102],[9.1938413,45.4669393],[9.1882302,45.4656042],[9.188552,45.4647615],[9.1929723,45.4647464],[9.1936375,45.4644906],[9.194131,45.4638886],[9.1946675,45.4634221],[9.195397,45.4623234],[9.1971995,45.4615559],[9.1999288,45.4649931],[9.2007871,45.4668592],[9.1978968,45.4695276]] },
   { name: 'CENTRO-SUD-EST', color: '#BCAAA4', polygon: [[9.194131,45.4638886],[9.1935088,45.463723],[9.1912772,45.4622181],[9.1896249,45.460984],[9.1920282,45.4588618],[9.1940065,45.458672],[9.1958948,45.4601169],[9.1970707,45.4615408],[9.195397,45.4623234],[9.194131,45.4638886]] },
   { name: 'CENTRO-SUD', color: '#E65100', polygon: [[9.1920282,45.4588618],[9.1896249,45.460984],[9.1895176,45.4617816],[9.186814,45.4622331],[9.1839135,45.4598161],[9.1920282,45.4588618]] },
   { name: 'SUD', color: '#880E4F', polygon: [[9.1156908,45.4432578],[9.1767164,45.4225382],[9.1862157,45.4182907],[9.1840978,45.4502429],[9.1836408,45.4598457],[9.1810079,45.4600567],[9.1673608,45.4598761],[9.1156908,45.4432578]] },
   { name: 'SUD-EST', color: '#CE93D8', polygon: [[9.1862157,45.4182907],[9.2670682,45.4441909],[9.2165998,45.456113],[9.1836408,45.4598457],[9.1862157,45.4182907]] },
   { name: 'SUD-OVEST', color: '#F57C00', polygon: [[9.077699,45.4287725],[9.0782998,45.4291942],[9.1156908,45.4432578],[9.1673608,45.4598761],[9.1777775,45.4600864],[9.178035,45.4639994],[9.1707394,45.4655043],[9.0842221,45.4459371],[9.077699,45.4287725]] },
-  { name: 'OVEST', color: '#FFEA00', polygon: [[9.0842221,45.4459371],[9.1707394,45.4655043],[9.178035,45.4639994],[9.174231,45.468709],[9.1552624,45.473103],[9.1501126,45.4732835],[9.1503701,45.4808065],[9.1514859,45.4819499],[9.0576729,45.4662411],[9.0774998,45.4291484],[9.0842221,45.4459371]] },
-  { name: 'NORD-OVEST', color: '#CE93D8', polygon: [[9.0576729,45.4662411],[9.1503701,45.4808065],[9.1501126,45.4732835],[9.1697171,45.4693181],[9.1690305,45.4731702],[9.1669706,45.4767814],[9.1698888,45.478948],[9.1736654,45.4805729],[9.15813,45.4938712],[9.1235402,45.5309814],[9.0900663,45.5242468],[9.0308431,45.5148652],[9.0576729,45.4662411]] },
-  { name: 'NORD', color: '#006064', polygon: [[9.1734938,45.4803322],[9.1697172,45.4787073],[9.166799,45.4765407],[9.1688589,45.4729295],[9.1695455,45.4694909],[9.1740594,45.4684683],[9.1763262,45.4657288],[9.177957,45.4670832],[9.1805748,45.4667822],[9.1823343,45.467324],[9.1836646,45.4681968],[9.1838792,45.4702734],[9.1835788,45.4716879],[9.1894152,45.4726509],[9.1920331,45.4723801],[9.1952947,45.4780375],[9.2177822,45.4995187],[9.2267944,45.5238781],[9.2116453,45.5280272],[9.1852954,45.5283579],[9.1638807,45.5351821],[9.1405778,45.5256821],[9.1233688,45.5307407],[9.1577439,45.4938634],[9.1734938,45.4803322]] },
+  { name: 'OVEST', color: '#F9A825', polygon: [[9.0842221,45.4459371],[9.1707394,45.4655043],[9.178035,45.4639994],[9.174231,45.468709],[9.1552624,45.473103],[9.1501126,45.4732835],[9.1503701,45.4808065],[9.1514859,45.4819499],[9.0576729,45.4662411],[9.0774998,45.4291484],[9.0842221,45.4459371]] },
+  { name: 'NORD-OVEST', color: '#7B1FA2', polygon: [[9.0576729,45.4662411],[9.1503701,45.4808065],[9.1501126,45.4732835],[9.1697171,45.4693181],[9.1690305,45.4731702],[9.1669706,45.4767814],[9.1698888,45.478948],[9.1736654,45.4805729],[9.15813,45.4938712],[9.1235402,45.5309814],[9.0900663,45.5242468],[9.0308431,45.5148652],[9.0576729,45.4662411]] },
+  { name: 'NORD', color: '#0277BD', polygon: [[9.1734938,45.4803322],[9.1697172,45.4787073],[9.166799,45.4765407],[9.1688589,45.4729295],[9.1695455,45.4694909],[9.1740594,45.4684683],[9.1763262,45.4657288],[9.177957,45.4670832],[9.1805748,45.4667822],[9.1823343,45.467324],[9.1836646,45.4681968],[9.1838792,45.4702734],[9.1835788,45.4716879],[9.1894152,45.4726509],[9.1920331,45.4723801],[9.1952947,45.4780375],[9.2177822,45.4995187],[9.2267944,45.5238781],[9.2116453,45.5280272],[9.1852954,45.5283579],[9.1638807,45.5351821],[9.1405778,45.5256821],[9.1233688,45.5307407],[9.1577439,45.4938634],[9.1734938,45.4803322]] },
   { name: 'NORD-EST', color: '#795548', polygon: [[9.1949507,45.4722163],[9.2034044,45.4767603],[9.2090269,45.4814847],[9.216409,45.4864023],[9.2290255,45.4937598],[9.2456766,45.5120474],[9.2505697,45.5114893],[9.2573503,45.5104668],[9.2624143,45.5182254],[9.2540029,45.5238182],[9.2425874,45.5240587],[9.2269662,45.5241188],[9.217954,45.4997594],[9.2068818,45.4886287],[9.1954664,45.4782782],[9.1922048,45.4726208],[9.1949507,45.4722163]] },
   { name: 'EST', color: '#0F9D58', polygon: [[9.1940065,45.458672],[9.2165998,45.456113],[9.2566629,45.4469312],[9.2634435,45.5030849],[9.2644735,45.5097618],[9.2456766,45.5120474],[9.2290255,45.4937598],[9.217051,45.4868404],[9.2090269,45.4814847],[9.2034044,45.4767603],[9.1949507,45.4722163],[9.2007871,45.4668592],[9.1999288,45.4649931],[9.1958948,45.4601169],[9.1940065,45.458672]] }
 ];
 
+// Build a color lookup by zone name
+var ZONE_COLORS = {};
+ZONES.forEach(function(z) { ZONE_COLORS[z.name] = z.color; });
+
 // ============================================================
-// APP STATE
+// STATE
 // ============================================================
 var orders = [];
 var geocodeCache = {};
+var mapConsegne = null;
+var mapZone = null;
+var mapConsegneMarkers = [];
+var mapZoneMarkers = [];
 
-// Try to load geocode cache from localStorage
-try {
-  var cached = localStorage.getItem('icbk_geocode_cache');
-  if (cached) geocodeCache = JSON.parse(cached);
-} catch(e) {}
+try { var c = localStorage.getItem('icbk_geocode_cache'); if (c) geocodeCache = JSON.parse(c); } catch(e) {}
 
 // ============================================================
 // CSV PARSING
@@ -471,106 +381,70 @@ function parseCSV(text) {
     var fields = splitCSVLine(lines[idx], ';');
     if (fields.length < 9) continue;
 
-    var id = fields[0];
-    var customer = fields[1];
-    var productsRaw = fields[2];
-    var date = fields[3];
-    var address = fields[4];
-    var contact = fields[5];
-    var instructions = fields[6];
-    var note = fields[7];
-    var totalStr = fields[8];
-
     var products = [];
     try {
-      var cleaned = productsRaw.replace(/""/g, '"').replace(/^"|"$/g, '');
+      var cleaned = fields[2].replace(/""/g, '"').replace(/^"|"$/g, '');
       products = JSON.parse(cleaned);
-    } catch(e) {
-      try { products = JSON.parse(productsRaw); } catch(e2) {}
-    }
+    } catch(e) { try { products = JSON.parse(fields[2]); } catch(e2) {} }
 
     var displayProducts = products
       .filter(function(p) { return p.name !== 'servizio di consegna'; })
       .map(function(p) {
-        return {
-          id: p.id,
-          name: p.name,
-          quantity: p.quantity,
-          base_price: p.base_price,
-          net_price: p.net_price,
-          abbr: PRODUCT_ABBREVIATIONS[p.name] || p.name
-        };
+        return { name: p.name, quantity: p.quantity, abbr: PRODUCT_ABBREVIATIONS[p.name] || p.name };
       });
 
-    var isNP = NP_CLIENTS.has(customer.trim().toUpperCase());
-    var total = parseFloat(totalStr) || 0;
+    var isNP = NP_CLIENTS.has(fields[1].trim().toUpperCase());
 
     results.push({
-      id: id,
-      customer: customer.trim(),
+      id: fields[0],
+      customer: fields[1].trim(),
       products: displayProducts,
-      allProducts: products,
-      date: date,
-      address: address.trim(),
-      contact: (contact || '').trim(),
-      instructions: (instructions || '').trim(),
-      note: (note || '').trim(),
-      total: total,
+      date: fields[3],
+      address: (fields[4] || '').trim(),
+      contact: (fields[5] || '').trim(),
+      instructions: (fields[6] || '').trim(),
+      note: (fields[7] || '').trim(),
+      total: parseFloat(fields[8]) || 0,
       isNP: isNP,
-      zone: null,
-      lat: null,
-      lng: null
+      zone: null, lat: null, lng: null
     });
   }
   return results;
 }
 
 function splitCSVLine(line, sep) {
-  var fields = [];
-  var current = '';
-  var inQuotes = false;
+  var fields = [], current = '', inQ = false;
   for (var i = 0; i < line.length; i++) {
     var ch = line[i];
-    if (ch === '"') {
-      if (line[i+1] === '"') { current += '"'; i++; }
-      else inQuotes = !inQuotes;
-    } else if (ch === sep && !inQuotes) {
-      fields.push(current);
-      current = '';
-    } else {
-      current += ch;
-    }
+    if (ch === '"') { if (line[i+1] === '"') { current += '"'; i++; } else inQ = !inQ; }
+    else if (ch === sep && !inQ) { fields.push(current); current = ''; }
+    else current += ch;
   }
   fields.push(current);
   return fields;
 }
 
 // ============================================================
-// GEOCODING (Nominatim)
+// GEOCODING
 // ============================================================
 function geocodeAddress(address) {
   var cacheKey = address.toLowerCase().trim();
   if (geocodeCache[cacheKey]) return Promise.resolve(geocodeCache[cacheKey]);
 
   var cleanAddr = address
-    .replace(/\(MI\)/gi, 'Milano')
-    .replace(/\(Milano\)/gi, 'Milano')
-    .replace(/, undefined/gi, '')
-    .replace(/undefined/gi, '')
+    .replace(/\(MI\)/gi, 'Milano').replace(/\(Milano\)/gi, 'Milano')
+    .replace(/, undefined/gi, '').replace(/undefined/gi, '')
     .replace(/Metropolitan City of Milan, Italy/gi, '')
-    .trim()
-    .replace(/,\s*,/g, ',')
-    .replace(/,\s*$/,'');
+    .trim().replace(/,\s*,/g, ',').replace(/,\s*$/,'');
 
-  if (!/milano|milan/i.test(cleanAddr) && !/novegro|peschiera|melegnano|segrate/i.test(cleanAddr)) {
+  if (!/milano|milan/i.test(cleanAddr) && !/novegro|peschiera|melegnano|segrate/i.test(cleanAddr))
     cleanAddr += ', Milano, Italy';
-  } else if (!/italy|italia/i.test(cleanAddr)) {
+  else if (!/italy|italia/i.test(cleanAddr))
     cleanAddr += ', Italy';
-  }
 
-  var url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(cleanAddr) + '&limit=1&countrycodes=it';
-  return fetch(url, { headers: { 'User-Agent': 'ICBK-DeliveryManager/1.0' } })
-    .then(function(resp) { return resp.json(); })
+  return fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(cleanAddr) + '&limit=1&countrycodes=it',
+    { headers: { 'User-Agent': 'ICBK-DeliveryManager/1.0' } })
+    .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data && data.length > 0) {
         var result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
@@ -579,14 +453,8 @@ function geocodeAddress(address) {
         return result;
       }
       return null;
-    })
-    .catch(function(e) {
-      console.warn('Geocoding failed for:', address, e);
-      return null;
-    });
+    }).catch(function() { return null; });
 }
-
-function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
 // ============================================================
 // POINT IN POLYGON
@@ -594,10 +462,8 @@ function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 function pointInPolygon(lng, lat, polygon) {
   var inside = false;
   for (var i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    var xi = polygon[i][0], yi = polygon[i][1];
-    var xj = polygon[j][0], yj = polygon[j][1];
-    var intersect = ((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
+    var xi = polygon[i][0], yi = polygon[i][1], xj = polygon[j][0], yj = polygon[j][1];
+    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
   }
   return inside;
 }
@@ -610,48 +476,46 @@ function findZone(lng, lat) {
 }
 
 // ============================================================
-// SAFE DOM HELPERS
+// DOM HELPERS
 // ============================================================
-function escapeHtml(str) {
-  var div = document.createElement('div');
-  div.appendChild(document.createTextNode(str));
-  return div.textContent;
-}
-
-function createEl(tag, attrs, children) {
-  var el = document.createElement(tag);
-  if (attrs) {
-    Object.keys(attrs).forEach(function(key) {
-      if (key === 'className') el.className = attrs[key];
-      else if (key === 'textContent') el.textContent = attrs[key];
-      else if (key.startsWith('on')) el.addEventListener(key.slice(2).toLowerCase(), attrs[key]);
-      else if (key === 'style' && typeof attrs[key] === 'object') Object.assign(el.style, attrs[key]);
-      else el.setAttribute(key, attrs[key]);
-    });
-  }
+function el(tag, attrs, children) {
+  var e = document.createElement(tag);
+  if (attrs) Object.keys(attrs).forEach(function(k) {
+    if (k === 'className') e.className = attrs[k];
+    else if (k === 'textContent') e.textContent = attrs[k];
+    else if (k.indexOf('on') === 0) e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+    else if (k === 'style' && typeof attrs[k] === 'object') Object.assign(e.style, attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  });
   if (children) {
-    if (typeof children === 'string') el.textContent = children;
-    else if (Array.isArray(children)) children.forEach(function(c) { if (c) el.appendChild(c); });
+    if (typeof children === 'string') e.textContent = children;
+    else if (Array.isArray(children)) children.forEach(function(c) { if (c) e.appendChild(c); });
   }
-  return el;
+  return e;
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 3000);
 }
 
 // ============================================================
-// RENDERING (DOM-based, no innerHTML)
+// RENDER: ZONE TABLES
 // ============================================================
-function render(filter) {
-  filter = filter || '';
-  var grid = document.getElementById('zonesGrid');
-  var filterLower = filter.toLowerCase();
+function renderZones(containerId, filter) {
+  filter = (filter || '').toLowerCase();
+  var container = document.getElementById(containerId);
+  while (container.firstChild) container.removeChild(container.firstChild);
 
   var grouped = {};
   var unassigned = [];
 
-  for (var i = 0; i < orders.length; i++) {
-    var order = orders[i];
-    if (filterLower) {
-      var searchable = (order.customer + ' ' + order.address + ' ' + order.products.map(function(p){return p.abbr;}).join(' ')).toLowerCase();
-      if (searchable.indexOf(filterLower) === -1) continue;
+  orders.forEach(function(order) {
+    if (filter) {
+      var s = (order.customer + ' ' + order.address + ' ' + order.products.map(function(p){return p.abbr;}).join(' ')).toLowerCase();
+      if (s.indexOf(filter) === -1) return;
     }
     if (order.zone) {
       if (!grouped[order.zone]) grouped[order.zone] = [];
@@ -659,145 +523,203 @@ function render(filter) {
     } else {
       unassigned.push(order);
     }
-  }
+  });
 
   var zoneOrder = ZONES.map(function(z) { return z.name; });
   var sortedZones = Object.keys(grouped).sort(function(a, b) {
-    var ia = zoneOrder.indexOf(a);
-    var ib = zoneOrder.indexOf(b);
-    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    return (zoneOrder.indexOf(a) === -1 ? 999 : zoneOrder.indexOf(a)) - (zoneOrder.indexOf(b) === -1 ? 999 : zoneOrder.indexOf(b));
   });
 
-  // Clear grid
-  while (grid.firstChild) grid.removeChild(grid.firstChild);
-
-  for (var zi = 0; zi < sortedZones.length; zi++) {
-    var zoneName = sortedZones[zi];
-    var zoneOrders = grouped[zoneName];
-    var zone = ZONES.find(function(z) { return z.name === zoneName; });
-    grid.appendChild(renderZoneCard(zoneName, zoneOrders, zone ? zone.color : '#666', false));
-  }
+  sortedZones.forEach(function(zoneName) {
+    container.appendChild(buildZoneSection(zoneName, grouped[zoneName], ZONE_COLORS[zoneName] || '#666', false));
+  });
 
   if (unassigned.length > 0) {
-    grid.appendChild(renderZoneCard('NON ASSEGNATI', unassigned, '#f87171', true));
+    container.appendChild(buildZoneSection('NON ASSEGNATI', unassigned, '#f87171', true));
   }
 
   updateHeaderStats();
-  attachDragListeners();
+  attachDrag();
 }
 
-function renderZoneCard(zoneName, zoneOrders, color, isUnassigned) {
+function buildZoneSection(zoneName, zoneOrders, color, isUnassigned) {
+  var section = el('div', { className: 'zone-section' + (isUnassigned ? ' unassigned' : ''), 'data-zone': zoneName });
+
+  // Product totals
   var productTotals = {};
   var totalItems = 0;
-  for (var i = 0; i < zoneOrders.length; i++) {
-    for (var j = 0; j < zoneOrders[i].products.length; j++) {
-      var p = zoneOrders[i].products[j];
+  zoneOrders.forEach(function(o) {
+    o.products.forEach(function(p) {
       if (!productTotals[p.abbr]) productTotals[p.abbr] = 0;
       productTotals[p.abbr] += p.quantity;
       totalItems += p.quantity;
-    }
-  }
-
-  var card = createEl('div', { className: 'zone-card' + (isUnassigned ? ' unassigned-zone' : ''), 'data-zone': zoneName });
+    });
+  });
 
   // Header
-  var header = createEl('div', { className: 'zone-header', onClick: function() { toggleZone(this); } });
-  header.appendChild(createEl('div', { className: 'zone-color', style: { background: color } }));
-  header.appendChild(createEl('div', { className: 'zone-name', textContent: zoneName }));
-  header.appendChild(createEl('div', { className: 'zone-badge', textContent: zoneOrders.length + ' consegne' }));
-  header.appendChild(createEl('span', { className: 'chevron', textContent: '\u25BC' }));
-  card.appendChild(header);
+  var header = el('div', { className: 'zone-table-header', onClick: function() {
+    this.classList.toggle('collapsed');
+    var content = this.nextElementSibling;
+    if (content) content.classList.toggle('collapsed');
+    var table = content ? content.nextElementSibling : null;
+    if (table) table.classList.toggle('collapsed');
+  }});
+  header.appendChild(el('div', { className: 'zone-dot', style: { background: color } }));
+  header.appendChild(el('span', { className: 'zone-title', textContent: zoneName }));
+  header.appendChild(el('span', { className: 'zone-badge', textContent: zoneOrders.length + ' consegne' }));
 
-  // Summary
-  var summary = createEl('div', { className: 'zone-summary' });
-  var stopItem = createEl('span', { className: 'zone-summary-item' });
-  stopItem.appendChild(createEl('strong', {}, String(zoneOrders.length)));
-  stopItem.appendChild(document.createTextNode(' stop'));
-  summary.appendChild(stopItem);
+  var totalsDiv = el('div', { className: 'zone-totals' });
+  var ti = el('span'); ti.appendChild(el('strong', {}, String(totalItems))); ti.appendChild(document.createTextNode(' pezzi'));
+  totalsDiv.appendChild(ti);
+  header.appendChild(totalsDiv);
+  header.appendChild(el('span', { className: 'chevron', textContent: '\u25BC' }));
+  section.appendChild(header);
 
-  var piecesItem = createEl('span', { className: 'zone-summary-item' });
-  piecesItem.appendChild(createEl('strong', {}, String(totalItems)));
-  piecesItem.appendChild(document.createTextNode(' pezzi totali'));
-  summary.appendChild(piecesItem);
-
+  // Product breakdown bar
+  var breakdownBar = el('div', { className: 'zone-product-totals zone-table-content' });
   Object.keys(productTotals).forEach(function(name) {
-    var item = createEl('span', { className: 'zone-summary-item' });
-    item.appendChild(createEl('strong', {}, String(productTotals[name])));
+    var item = el('span');
+    item.appendChild(el('strong', {}, String(productTotals[name])));
     item.appendChild(document.createTextNode(' ' + name));
-    summary.appendChild(item);
+    breakdownBar.appendChild(item);
   });
-  card.appendChild(summary);
+  section.appendChild(breakdownBar);
 
-  // Orders
-  var ordersContainer = createEl('div', { className: 'zone-orders' });
-  for (var oi = 0; oi < zoneOrders.length; oi++) {
-    ordersContainer.appendChild(renderOrderRow(zoneOrders[oi], zoneName));
-  }
-  card.appendChild(ordersContainer);
+  // Table
+  var tableWrap = el('div', { className: 'zone-table-content' });
+  var table = el('table', { className: 'orders-table' });
 
-  return card;
-}
+  var thead = el('thead');
+  var headRow = el('tr');
+  [['#','40px'],['Cliente',''],['Prodotti',''],['Indirizzo',''],['Note',''],['Importo','']].forEach(function(h) {
+    var th = el('th', { textContent: h[0] });
+    if (h[1]) th.style.width = h[1];
+    if (h[0] === 'Cliente') th.className = 'col-customer';
+    if (h[0] === 'Prodotti') th.className = 'col-products';
+    if (h[0] === 'Indirizzo') th.className = 'col-address';
+    if (h[0] === 'Note') th.className = 'col-notes';
+    if (h[0] === 'Importo') th.className = 'col-amount';
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
 
-function renderOrderRow(order, zoneName) {
-  var row = createEl('div', { className: 'order-row', draggable: 'true', 'data-order-id': order.id, 'data-zone': zoneName });
+  var tbody = el('tbody');
+  zoneOrders.forEach(function(order, idx) {
+    var tr = el('tr', { draggable: 'true', 'data-order-id': order.id, 'data-zone': zoneName });
 
-  // Column 1: Customer + notes
-  var col1 = createEl('div');
-  col1.appendChild(createEl('div', { className: 'order-customer', title: order.customer, textContent: order.customer }));
-  var noteText = order.instructions || order.note;
-  if (noteText) {
-    col1.appendChild(createEl('div', { className: 'order-notes', textContent: noteText }));
-  }
-  row.appendChild(col1);
+    // #
+    tr.appendChild(el('td', { textContent: String(idx + 1) }));
 
-  // Column 2: Products
-  var col2 = createEl('div', { className: 'order-products' });
-  for (var pi = 0; pi < order.products.length; pi++) {
-    var prod = order.products[pi];
-    col2.appendChild(createEl('span', { className: 'product-tag', textContent: prod.abbr + ' x' + prod.quantity }));
-  }
-  row.appendChild(col2);
+    // Customer
+    tr.appendChild(el('td', { className: 'col-customer', title: order.customer, textContent: order.customer }));
 
-  // Column 3: Address
-  row.appendChild(createEl('div', { className: 'order-address', title: order.address, textContent: order.address }));
+    // Products
+    var prodTd = el('td', { className: 'col-products' });
+    order.products.forEach(function(p) {
+      prodTd.appendChild(el('span', { className: 'product-tag', textContent: p.abbr + ' x' + p.quantity }));
+    });
+    tr.appendChild(prodTd);
 
-  // Column 4: Amount
-  if (order.isNP) {
-    row.appendChild(createEl('div', { className: 'order-amount np', textContent: 'NP' }));
-  } else {
-    var amountEl = createEl('div', { className: 'order-amount' });
-    amountEl.textContent = '\u20AC' + order.total.toFixed(2);
-    row.appendChild(amountEl);
-  }
+    // Address
+    tr.appendChild(el('td', { className: 'col-address', title: order.address, textContent: order.address }));
 
-  return row;
+    // Notes
+    var noteText = order.instructions || order.note;
+    var noteTd = el('td', { className: 'col-notes' });
+    if (noteText) noteTd.appendChild(el('span', { className: 'notes-text', title: noteText, textContent: noteText }));
+    tr.appendChild(noteTd);
+
+    // Amount
+    var amtTd = el('td', { className: 'col-amount' });
+    if (order.isNP) {
+      amtTd.appendChild(el('span', { className: 'np-badge', textContent: 'NP' }));
+    } else {
+      amtTd.textContent = '\u20AC' + order.total.toFixed(2);
+    }
+    tr.appendChild(amtTd);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  section.appendChild(tableWrap);
+
+  return section;
 }
 
 function updateHeaderStats() {
   var stats = document.getElementById('headerStats');
   while (stats.firstChild) stats.removeChild(stats.firstChild);
-
-  var totalOrders = orders.length;
-  var assignedOrders = orders.filter(function(o) { return o.zone; }).length;
-  var npOrders = orders.filter(function(o) { return o.isNP; }).length;
-  var totalPieces = orders.reduce(function(sum, o) { return sum + o.products.reduce(function(s, p) { return s + p.quantity; }, 0); }, 0);
+  var totalPieces = orders.reduce(function(s, o) { return s + o.products.reduce(function(ss, p) { return ss + p.quantity; }, 0); }, 0);
   var zonesSet = {};
   orders.forEach(function(o) { if (o.zone) zonesSet[o.zone] = true; });
-  var zonesCount = Object.keys(zonesSet).length;
-
-  var items = [
-    [totalOrders, 'ordini'],
-    [assignedOrders, 'assegnati'],
-    [zonesCount, 'zone'],
-    [totalPieces, 'pezzi'],
-    [npOrders, 'NP']
-  ];
-
-  items.forEach(function(item) {
-    var stat = createEl('div', { className: 'header-stat' });
-    stat.appendChild(createEl('strong', {}, String(item[0])));
+  [[orders.length, 'ordini'],[orders.filter(function(o){return o.zone;}).length, 'assegnati'],[Object.keys(zonesSet).length, 'zone'],[totalPieces, 'pezzi'],[orders.filter(function(o){return o.isNP;}).length, 'NP']].forEach(function(item) {
+    var stat = el('div', { className: 'header-stat' });
+    stat.appendChild(el('strong', {}, String(item[0])));
     stat.appendChild(document.createTextNode(' ' + item[1]));
     stats.appendChild(stat);
+  });
+}
+
+// ============================================================
+// MAPS
+// ============================================================
+function buildPopupContent(order) {
+  var prods = order.products.map(function(p) {
+    return '<span class="popup-product">' + escTxt(p.abbr) + ' x' + p.quantity + '</span>';
+  }).join('');
+
+  var amountLine = order.isNP
+    ? '<div class="popup-amount popup-np">NP - Non Paga</div>'
+    : '<div class="popup-amount">\u20AC' + order.total.toFixed(2) + '</div>';
+
+  return '<div class="popup-title">' + escTxt(order.customer) + '</div>' +
+    '<div class="popup-products">' + prods + '</div>' +
+    '<div class="popup-address">' + escTxt(order.address) + '</div>' +
+    amountLine;
+}
+
+function escTxt(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function initMapConsegne() {
+  if (mapConsegne) return;
+  mapConsegne = L.map('mapConsegne').setView([45.464, 9.19], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(mapConsegne);
+}
+
+function initMapZone() {
+  if (mapZone) return;
+  mapZone = L.map('mapZone').setView([45.464, 9.19], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(mapZone);
+
+  // Draw zone polygons
+  ZONES.forEach(function(z) {
+    var coords = z.polygon.map(function(p) { return [p[1], p[0]]; });
+    L.polygon(coords, { color: z.color, weight: 2, fillOpacity: 0.15 }).addTo(mapZone)
+      .bindTooltip(z.name, { permanent: false, direction: 'center', className: 'zone-tooltip' });
+  });
+}
+
+function refreshMapMarkers(map, markersArray) {
+  // Clear existing
+  markersArray.forEach(function(m) { map.removeLayer(m); });
+  markersArray.length = 0;
+
+  orders.forEach(function(order) {
+    if (!order.lat || !order.lng) return;
+    var zoneColor = order.zone ? (ZONE_COLORS[order.zone] || '#4f8cff') : '#f87171';
+    var marker = L.circleMarker([order.lat, order.lng], {
+      radius: 7,
+      color: '#fff',
+      weight: 2,
+      fillColor: zoneColor,
+      fillOpacity: 0.9
+    }).addTo(map);
+    marker.bindPopup(buildPopupContent(order), { maxWidth: 280 });
+    markersArray.push(marker);
   });
 }
 
@@ -806,40 +728,33 @@ function updateHeaderStats() {
 // ============================================================
 var draggedOrderId = null;
 
-function attachDragListeners() {
-  document.querySelectorAll('.order-row').forEach(function(row) {
+function attachDrag() {
+  document.querySelectorAll('.orders-table tr[draggable]').forEach(function(row) {
     row.addEventListener('dragstart', function(e) {
-      draggedOrderId = e.currentTarget.getAttribute('data-order-id');
-      e.currentTarget.classList.add('dragging');
+      draggedOrderId = this.getAttribute('data-order-id');
+      this.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
     });
-    row.addEventListener('dragend', function(e) {
-      e.currentTarget.classList.remove('dragging');
-      document.querySelectorAll('.zone-card').forEach(function(c) { c.classList.remove('drag-target'); });
+    row.addEventListener('dragend', function() {
+      this.classList.remove('dragging');
+      document.querySelectorAll('.zone-section').forEach(function(s) { s.classList.remove('drag-target'); });
     });
   });
 
-  document.querySelectorAll('.zone-card').forEach(function(card) {
-    card.addEventListener('dragover', function(e) {
+  document.querySelectorAll('.zone-section').forEach(function(section) {
+    section.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; section.classList.add('drag-target'); });
+    section.addEventListener('dragleave', function() { section.classList.remove('drag-target'); });
+    section.addEventListener('drop', function(e) {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      card.classList.add('drag-target');
-    });
-    card.addEventListener('dragleave', function() {
-      card.classList.remove('drag-target');
-    });
-    card.addEventListener('drop', function(e) {
-      e.preventDefault();
-      card.classList.remove('drag-target');
-      var targetZone = card.getAttribute('data-zone');
+      section.classList.remove('drag-target');
+      var targetZone = section.getAttribute('data-zone');
       if (!draggedOrderId || !targetZone) return;
-
       var order = orders.find(function(o) { return o.id === draggedOrderId; });
       if (order) {
         var oldZone = order.zone || 'NON ASSEGNATI';
         order.zone = targetZone === 'NON ASSEGNATI' ? null : targetZone;
-        render(document.getElementById('searchInput').value);
-        showToast(order.customer + ' spostato da ' + oldZone + ' a ' + targetZone);
+        renderAll();
+        showToast(order.customer + ': ' + oldZone + ' \u2192 ' + targetZone);
       }
       draggedOrderId = null;
     });
@@ -847,191 +762,124 @@ function attachDragListeners() {
 }
 
 // ============================================================
-// UI HELPERS
+// RENDER ALL
 // ============================================================
-function toggleZone(headerEl) {
-  var card = headerEl.closest('.zone-card');
-  card.querySelector('.zone-orders').classList.toggle('collapsed');
-  card.querySelector('.zone-summary').classList.toggle('collapsed');
-  headerEl.classList.toggle('collapsed');
+function renderAll() {
+  var filter = document.getElementById('searchInput').value;
+  renderZones('zonesContainer', filter);
+  renderZones('zonesContainerMap', filter);
+  if (mapConsegne) refreshMapMarkers(mapConsegne, mapConsegneMarkers);
+  if (mapZone) refreshMapMarkers(mapZone, mapZoneMarkers);
 }
 
-function expandAll() {
-  document.querySelectorAll('.zone-orders.collapsed').forEach(function(el) { el.classList.remove('collapsed'); });
-  document.querySelectorAll('.zone-summary.collapsed').forEach(function(el) { el.classList.remove('collapsed'); });
-  document.querySelectorAll('.zone-header.collapsed').forEach(function(el) { el.classList.remove('collapsed'); });
-}
+// ============================================================
+// TABS
+// ============================================================
+document.querySelectorAll('.tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    this.classList.add('active');
+    var panelId = 'panel-' + this.getAttribute('data-tab');
+    document.getElementById(panelId).classList.add('active');
 
-function collapseAll() {
-  document.querySelectorAll('.zone-orders').forEach(function(el) { el.classList.add('collapsed'); });
-  document.querySelectorAll('.zone-summary').forEach(function(el) { el.classList.add('collapsed'); });
-  document.querySelectorAll('.zone-header').forEach(function(el) { el.classList.add('collapsed'); });
-}
+    // Lazy init maps
+    if (this.getAttribute('data-tab') === 'mapConsegne') {
+      initMapConsegne();
+      setTimeout(function() { mapConsegne.invalidateSize(); refreshMapMarkers(mapConsegne, mapConsegneMarkers); }, 100);
+    }
+    if (this.getAttribute('data-tab') === 'mapZone') {
+      initMapZone();
+      setTimeout(function() { mapZone.invalidateSize(); refreshMapMarkers(mapZone, mapZoneMarkers); }, 100);
+    }
+  });
+});
 
-function showToast(msg) {
-  var toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.classList.add('show');
-  setTimeout(function() { toast.classList.remove('show'); }, 3000);
-}
-
-function resetApp() {
+// ============================================================
+// TOOLBAR
+// ============================================================
+document.getElementById('searchInput').addEventListener('input', function() { renderAll(); });
+document.getElementById('btnExpand').addEventListener('click', function() {
+  document.querySelectorAll('.zone-table-content.collapsed').forEach(function(e) { e.classList.remove('collapsed'); });
+  document.querySelectorAll('.zone-table-header.collapsed').forEach(function(e) { e.classList.remove('collapsed'); });
+});
+document.getElementById('btnCollapse').addEventListener('click', function() {
+  document.querySelectorAll('.zone-table-content').forEach(function(e) { e.classList.add('collapsed'); });
+  document.querySelectorAll('.zone-table-header').forEach(function(e) { e.classList.add('collapsed'); });
+});
+document.getElementById('btnPrint').addEventListener('click', function() { window.print(); });
+document.getElementById('btnExport').addEventListener('click', function() {
+  var csv = 'Zona;#;Cliente;Prodotti;Quantita;Indirizzo;Importo;Note\n';
+  var sorted = orders.slice().sort(function(a, b) { return (a.zone || 'ZZZ').localeCompare(b.zone || 'ZZZ'); });
+  var zoneIdx = {};
+  sorted.forEach(function(o) {
+    var z = o.zone || 'N/A';
+    if (!zoneIdx[z]) zoneIdx[z] = 0;
+    zoneIdx[z]++;
+    var prods = o.products.map(function(p) { return p.abbr + ' x' + p.quantity; }).join(', ');
+    var qty = o.products.reduce(function(s, p) { return s + p.quantity; }, 0);
+    csv += z + ';' + zoneIdx[z] + ';' + o.customer + ';' + prods + ';' + qty + ';' + o.address + ';' + (o.isNP ? 'NP' : o.total.toFixed(2)) + ';' + (o.instructions || o.note) + '\n';
+  });
+  var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  var a = el('a', { href: URL.createObjectURL(blob), download: 'giri_' + new Date().toISOString().slice(0,10) + '.csv' });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+document.getElementById('btnReset').addEventListener('click', function() {
   orders = [];
   document.getElementById('mainView').classList.remove('active');
   document.getElementById('uploadArea').style.display = '';
-  document.getElementById('mapPanel').classList.remove('active');
-  document.getElementById('mapPanel').removeAttribute('data-loaded');
-}
-
-function toggleMap() {
-  var panel = document.getElementById('mapPanel');
-  panel.classList.toggle('active');
-  if (panel.classList.contains('active') && !panel.getAttribute('data-loaded')) {
-    loadMap();
-    panel.setAttribute('data-loaded', 'true');
-  }
-}
-
-function loadMap() {
-  var container = document.getElementById('mapContainer');
-
-  // Build Leaflet map via blob URL (avoids srcdoc innerHTML concerns)
-  var zonePolygonsJS = ZONES.map(function(z) {
-    var coords = z.polygon.map(function(p) { return '[' + p[1] + ', ' + p[0] + ']'; }).join(',');
-    return "L.polygon([" + coords + "], {color:'" + z.color + "',weight:2,fillOpacity:0.2}).addTo(map).bindPopup('" + z.name + "');";
-  }).join('\n');
-
-  var markers = orders.filter(function(o) { return o.lat && o.lng; }).map(function(o) {
-    var color = o.isNP ? '#c084fc' : '#4f8cff';
-    var safeName = o.customer.replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    return "L.circleMarker([" + o.lat + "," + o.lng + "],{radius:6,color:'" + color + "',fillColor:'" + color + "',fillOpacity:0.8}).addTo(map).bindPopup('" + safeName + "');";
-  }).join('\n');
-
-  var mapHTML = '<!DOCTYPE html><html><head>' +
-    '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>' +
-    '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>' +
-    '<style>body{margin:0}#map{width:100%;height:100vh}</style>' +
-    '</head><body><div id="map"></div><script>' +
-    'var map = L.map("map").setView([45.464, 9.19], 12);' +
-    'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"OSM"}).addTo(map);' +
-    zonePolygonsJS + '\n' + markers +
-    '<\/script></body></html>';
-
-  var blob = new Blob([mapHTML], { type: 'text/html' });
-  var blobUrl = URL.createObjectURL(blob);
-
-  var iframe = document.createElement('iframe');
-  iframe.src = blobUrl;
-  iframe.style.width = '100%';
-  iframe.style.height = '100%';
-  iframe.style.border = 'none';
-
-  while (container.firstChild) container.removeChild(container.firstChild);
-  container.appendChild(iframe);
-}
-
-function exportCSV() {
-  var csv = 'Zona;Cliente;Prodotti;Quantita;Indirizzo;Importo;Note\n';
-  var sorted = orders.slice().sort(function(a, b) { return (a.zone || 'ZZZ').localeCompare(b.zone || 'ZZZ'); });
-  for (var i = 0; i < sorted.length; i++) {
-    var o = sorted[i];
-    var prods = o.products.map(function(p) { return p.abbr + ' x' + p.quantity; }).join(', ');
-    var qty = o.products.reduce(function(s, p) { return s + p.quantity; }, 0);
-    var amount = o.isNP ? 'NP' : o.total.toFixed(2);
-    csv += (o.zone || 'N/A') + ';' + o.customer + ';' + prods + ';' + qty + ';' + o.address + ';' + amount + ';' + (o.instructions || o.note) + '\n';
-  }
-  var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = 'giri_' + new Date().toISOString().slice(0,10) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+  if (mapConsegne) { mapConsegne.remove(); mapConsegne = null; }
+  if (mapZone) { mapZone.remove(); mapZone = null; }
+  mapConsegneMarkers = [];
+  mapZoneMarkers = [];
+});
 
 // ============================================================
-// FILE UPLOAD & PROCESSING
+// FILE UPLOAD
 // ============================================================
 var uploadBox = document.getElementById('uploadBox');
 var fileInput = document.getElementById('fileInput');
-
 uploadBox.addEventListener('click', function() { fileInput.click(); });
 uploadBox.addEventListener('dragover', function(e) { e.preventDefault(); uploadBox.classList.add('dragover'); });
 uploadBox.addEventListener('dragleave', function() { uploadBox.classList.remove('dragover'); });
 uploadBox.addEventListener('drop', function(e) {
-  e.preventDefault();
-  uploadBox.classList.remove('dragover');
-  var file = e.dataTransfer.files[0];
-  if (file) processFile(file);
+  e.preventDefault(); uploadBox.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
 });
-fileInput.addEventListener('change', function(e) {
-  if (e.target.files[0]) processFile(e.target.files[0]);
-});
+fileInput.addEventListener('change', function(e) { if (e.target.files[0]) processFile(e.target.files[0]); });
 
 function processFile(file) {
   file.text().then(function(text) {
     orders = parseCSV(text);
-
-    if (orders.length === 0) {
-      showToast('Nessun ordine trovato nel file');
-      return;
-    }
+    if (orders.length === 0) { showToast('Nessun ordine trovato'); return; }
 
     document.getElementById('uploadArea').style.display = 'none';
     document.getElementById('mainView').classList.add('active');
-
     var overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('active');
 
     var total = orders.length;
     var idx = 0;
 
-    function processNext() {
+    function next() {
       if (idx >= orders.length) {
         overlay.classList.remove('active');
-        render();
-        showToast(orders.length + ' ordini caricati, ' + orders.filter(function(o){return o.zone;}).length + ' assegnati a zone');
+        renderAll();
+        showToast(orders.length + ' ordini caricati, ' + orders.filter(function(o){return o.zone;}).length + ' assegnati');
         return;
       }
-
       document.getElementById('loadingProgress').textContent = (idx + 1) + ' / ' + total;
-      var currentOrder = orders[idx];
-      var cacheKey = currentOrder.address.toLowerCase().trim();
-      var wasCached = !!geocodeCache[cacheKey];
-
-      geocodeAddress(currentOrder.address).then(function(result) {
-        if (result) {
-          currentOrder.lat = result.lat;
-          currentOrder.lng = result.lng;
-          currentOrder.zone = findZone(result.lng, result.lat);
-        }
+      var o = orders[idx];
+      var wasCached = !!geocodeCache[o.address.toLowerCase().trim()];
+      geocodeAddress(o.address).then(function(result) {
+        if (result) { o.lat = result.lat; o.lng = result.lng; o.zone = findZone(result.lng, result.lat); }
         idx++;
-        if (wasCached) {
-          processNext();
-        } else {
-          setTimeout(processNext, 1100);
-        }
+        wasCached ? next() : setTimeout(next, 1100);
       });
     }
-
-    processNext();
+    next();
   });
 }
-
-// Search
-document.getElementById('searchInput').addEventListener('input', function(e) {
-  render(e.target.value);
-});
-
-// Button listeners
-document.getElementById('btnMap').addEventListener('click', toggleMap);
-document.getElementById('btnExpand').addEventListener('click', expandAll);
-document.getElementById('btnCollapse').addEventListener('click', collapseAll);
-document.getElementById('btnPrint').addEventListener('click', function() { window.print(); });
-document.getElementById('btnExport').addEventListener('click', exportCSV);
-document.getElementById('btnReset').addEventListener('click', resetApp);
 </script>
 </body>
 </html>
