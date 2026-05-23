@@ -55,6 +55,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .zone-kg{font-weight:700;font-size:13px;color:var(--accent);text-align:right;white-space:nowrap;}
 .zone-poli{font-size:12px;color:#666;text-align:right;white-space:nowrap;}
 .zone-colli.warn,.zone-kg.warn,.zone-poli.warn{color:var(--orange);font-weight:700;}
+/* Blinking unassigned */
+.zone-section.unassigned.has-orders .zone-table-header{animation:blink-unassigned 2s ease-in-out infinite;}
+@keyframes blink-unassigned{0%,100%{background:rgba(220,38,38,0.06);}50%{background:rgba(220,38,38,0.15);}}
+.zone-filter-btn.unassigned-tab{border:2px solid var(--red);border-radius:6px;color:var(--red);font-weight:600;}
+.zone-filter-btn.unassigned-tab.has-orders{animation:blink-tab 2s ease-in-out infinite;}
+@keyframes blink-tab{0%,100%{background:rgba(220,38,38,0.05);}50%{background:rgba(220,38,38,0.15);}}
 /* Custom zone styling */
 .zone-section.custom-zone .zone-table-header{background:rgba(124,58,237,0.05);}
 .zone-section.custom-zone .zone-title{color:#7c3aed;}
@@ -522,13 +528,17 @@ function buildFilterBar(barId,currentFilter,onSelect){
   // TUTTI
   var allBtn=el('button',{className:'zone-filter-btn'+(currentFilter==='TUTTI'?' active':''),onClick:function(){onSelect('TUTTI');}});
   allBtn.appendChild(document.createTextNode('TUTTI'));allBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+orders.length+')'}));bar.appendChild(allBtn);
+  // NON ASSEGNATI - second tab, always visible
+  var uCls='zone-filter-btn unassigned-tab'+(unassigned.length>0?' has-orders':'')+(currentFilter==='NON ASSEGNATI'?' active':'');
+  var uBtn=el('button',{className:uCls,onClick:function(){onSelect('NON ASSEGNATI');}});
+  uBtn.appendChild(document.createTextNode('N/A'));uBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+unassigned.length+')'}));bar.appendChild(uBtn);
   // Zones in display order
   var seen={};
-  ZONE_DISPLAY_ORDER.forEach(function(zn){if(seen[zn])return;seen[zn]=true;var c=(grouped[zn]||[]).length;if(c===0)return;
+  ZONE_DISPLAY_ORDER.forEach(function(zn){if(seen[zn])return;seen[zn]=true;var c=(grouped[zn]||[]).length;
     var btn=el('button',{className:'zone-filter-btn'+(currentFilter===zn?' active':''),onClick:function(){onSelect(zn);}});
     btn.appendChild(document.createTextNode(zn));btn.appendChild(el('span',{className:'zf-count',textContent:' ('+c+')'}));bar.appendChild(btn);
   });
-  Object.keys(grouped).forEach(function(zn){if(!seen[zn]&&zn!==SEDE_ZONE){var c=grouped[zn].length;if(c===0)return;
+  Object.keys(grouped).forEach(function(zn){if(!seen[zn]&&zn!==SEDE_ZONE&&customZones.indexOf(zn)===-1){var c=grouped[zn].length;if(c===0)return;
     var btn=el('button',{className:'zone-filter-btn'+(currentFilter===zn?' active':''),onClick:function(){onSelect(zn);}});
     btn.appendChild(document.createTextNode(zn));btn.appendChild(el('span',{className:'zf-count',textContent:' ('+c+')'}));bar.appendChild(btn);
   }});
@@ -538,7 +548,6 @@ function buildFilterBar(barId,currentFilter,onSelect){
     var cBtn=el('button',{className:'zone-filter-btn'+(currentFilter===czn?' active':''),onClick:function(){onSelect(czn);}});
     cBtn.appendChild(document.createTextNode(czn));cBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+cc+')'}));bar.appendChild(cBtn);
   });
-  if(unassigned.length>0){var uBtn=el('button',{className:'zone-filter-btn'+(currentFilter==='NON ASSEGNATI'?' active':''),onClick:function(){onSelect('NON ASSEGNATI');}});uBtn.appendChild(document.createTextNode('N/A'));uBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+unassigned.length+')'}));bar.appendChild(uBtn);}
   if(grouped[SEDE_ZONE]){var sBtn=el('button',{className:'zone-filter-btn'+(currentFilter===SEDE_ZONE?' active':''),onClick:function(){onSelect(SEDE_ZONE);}});sBtn.appendChild(document.createTextNode('RITIRO'));sBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+grouped[SEDE_ZONE].length+')'}));bar.appendChild(sBtn);}
 }
 
@@ -570,7 +579,7 @@ function renderZones(containerId,filter,zoneFilter){
 }
 
 function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom){
-  var cls='zone-section';if(isUnassigned)cls+=' unassigned';if(isSede)cls+=' sede-zone';if(isCustom)cls+=' custom-zone';
+  var cls='zone-section';if(isUnassigned){cls+=' unassigned';if(zoneOrders.length>0)cls+=' has-orders';}if(isSede)cls+=' sede-zone';if(isCustom)cls+=' custom-zone';
   var section=el('div',{className:cls,'data-zone':zoneName});var cargo=calcCargo(zoneOrders);
 
   var header=el('div',{className:'zone-table-header',onClick:function(e){if(e.target.classList.contains('btn-remove-zone'))return;this.classList.toggle('collapsed');var n=this.nextElementSibling;while(n&&n.classList.contains('zone-table-content')){n.classList.toggle('collapsed');n=n.nextElementSibling;}}});
@@ -896,6 +905,53 @@ function runBalancing(){
     }
   });
 
+  // 2b. Assign unassigned orders to nearest zone
+  var unassignedOrders=orders.filter(function(o){return!o.zone&&!o.isSede;});
+  unassignedOrders.forEach(function(o){
+    if(!o.lat||!o.lng)return; // can't assign without coordinates
+    var oLoad=getOrderLoad(o);
+    // Find nearest zone centroid
+    var bestZone=null,bestDist=Infinity;
+    activeZones.forEach(function(zn){
+      var zc=getZoneCentroid(zn);
+      if(!zc)return;
+      var d=distanceBetween(o.lat,o.lng,zc.lat,zc.lng);
+      // Also consider zone load - prefer less loaded zones
+      var zl=getZoneLoad(zn);
+      suggestions.forEach(function(s){if(s.type==='move'&&s.to===zn)zl.total+=getOrderLoad(s.order).total;});
+      // Weight distance + load factor
+      var score=d+(zl.total/CAPACITY_NORMAL)*0.01;
+      if(score<bestDist){bestDist=score;bestZone=zn;}
+    });
+    if(bestZone){
+      // Check if big order needs split
+      if(oLoad.kg>=SPLIT_THRESHOLD_KG&&!o.splitPart){
+        var targetLoad=getZoneLoad(bestZone).total;
+        if(targetLoad+oLoad.total>CAPACITY_NORMAL){
+          // Find second zone for split
+          var adj2=null,adj2Dist=Infinity;
+          activeZones.forEach(function(zn2){
+            if(zn2===bestZone)return;
+            var zc2=getZoneCentroid(zn2);
+            if(!zc2)return;
+            var d2=distanceBetween(o.lat,o.lng,zc2.lat,zc2.lng);
+            if(d2<adj2Dist){adj2Dist=d2;adj2=zn2;}
+          });
+          if(adj2){
+            hasSplitDeroga=true;
+            suggestions.push({type:'split',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' ('+oLoad.kg+'kg). Proposta divisione tra '+bestZone+' e '+adj2});
+          }else{
+            suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' assegnato a '+bestZone+' (zona pi\u00f9 vicina)'});
+          }
+        }else{
+          suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' assegnato a '+bestZone+' (zona pi\u00f9 vicina)'});
+        }
+      }else{
+        suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' assegnato a '+bestZone+' (zona pi\u00f9 vicina)'});
+      }
+    }
+  });
+
   // 3. Check if solution is feasible
   var statusMsg='';var statusCls='bal-ok';
   if(saturationPct>=100){
@@ -1013,7 +1069,25 @@ document.getElementById('searchInput').addEventListener('input',function(){rende
 document.getElementById('btnExpand').addEventListener('click',function(){document.querySelectorAll('.zone-table-content.collapsed').forEach(function(e){e.classList.remove('collapsed');});document.querySelectorAll('.zone-table-header.collapsed').forEach(function(e){e.classList.remove('collapsed');});});
 document.getElementById('btnCollapse').addEventListener('click',function(){document.querySelectorAll('.zone-table-content').forEach(function(e){e.classList.add('collapsed');});document.querySelectorAll('.zone-table-header').forEach(function(e){e.classList.add('collapsed');});});
 document.getElementById('btnPrint').addEventListener('click',function(){window.print();});
-document.getElementById('btnExport').addEventListener('click',exportExcel);
+document.getElementById('btnExport').addEventListener('click',function(){
+  var unassigned=orders.filter(function(o){return!o.zone&&!o.isSede;});
+  if(unassigned.length===0){exportExcel();return;}
+  // Build list of unassigned
+  var names=unassigned.map(function(o){return o.customer+' ('+o.address+')';}).join('\n');
+  var msg='ATTENZIONE: ci sono '+unassigned.length+' ordini NON ASSEGNATI:\n\n'+names+'\n\nVuoi esportare comunque?\n\n[OK] = Esporta comunque\n[Annulla] = Torna per assegnare';
+  if(!confirm(msg)){
+    // Go to non-assegnati tab
+    filters.giri='NON ASSEGNATI';renderAll();
+    showToast('Vai alla scheda NON ASSEGNATI per assegnare gli ordini');
+    return;
+  }
+  // Second confirm
+  if(!confirm('Sei SICURO di voler esportare con '+unassigned.length+' ordini non assegnati? Questi ordini non saranno nei giri dei corrieri.')){
+    filters.giri='NON ASSEGNATI';renderAll();
+    return;
+  }
+  exportExcel();
+});
 function exportExcel(){
   var wb=XLSX.utils.book_new();
   var HDRS=['Cliente','Prodotti','Indirizzo','Note','Importo','Zona'];
