@@ -675,17 +675,15 @@ function exportExcel(){
   var numCols=HDRS.length;
 
   // Styles
-  var sBorder={top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}};
-  var sTitle={font:{bold:true,sz:14,color:{rgb:'1a1a1a'}},alignment:{horizontal:'left'}};
-  var sCargo={font:{bold:true,sz:11,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'2563EB'}},alignment:{horizontal:'left'}};
-  var sHeader={font:{bold:true,sz:10,color:{rgb:'333333'}},fill:{fgColor:{rgb:'F0F0F0'}},border:sBorder,alignment:{horizontal:'left'}};
-  var sHeaderR={font:{bold:true,sz:10,color:{rgb:'333333'}},fill:{fgColor:{rgb:'F0F0F0'}},border:sBorder,alignment:{horizontal:'right'}};
+  var sBorder={top:{style:'thin',color:{rgb:'AAAAAA'}},bottom:{style:'thin',color:{rgb:'AAAAAA'}},left:{style:'thin',color:{rgb:'AAAAAA'}},right:{style:'thin',color:{rgb:'AAAAAA'}}};
+  var sBorderBold={top:{style:'medium',color:{rgb:'333333'}},bottom:{style:'medium',color:{rgb:'333333'}},left:{style:'medium',color:{rgb:'333333'}},right:{style:'medium',color:{rgb:'333333'}}};
+  var sTitle={font:{bold:true,sz:14,color:{rgb:'000000'}},alignment:{horizontal:'left'}};
+  var sCargo={font:{bold:true,sz:11,color:{rgb:'000000'}},border:{bottom:{style:'medium',color:{rgb:'000000'}}},alignment:{horizontal:'left'}};
+  var sHeader={font:{bold:true,sz:10,color:{rgb:'000000'}},border:sBorderBold,alignment:{horizontal:'left'}};
+  var sHeaderR={font:{bold:true,sz:10,color:{rgb:'000000'}},border:sBorderBold,alignment:{horizontal:'right'}};
   var sCell={font:{sz:10,color:{rgb:'1a1a1a'}},border:sBorder,alignment:{horizontal:'left',vertical:'center',wrapText:false}};
   var sCellR={font:{sz:10,color:{rgb:'1a1a1a'}},border:sBorder,alignment:{horizontal:'right',vertical:'center'}};
-  var sCellAlt={font:{sz:10,color:{rgb:'1a1a1a'}},fill:{fgColor:{rgb:'FAFAFA'}},border:sBorder,alignment:{horizontal:'left',vertical:'center',wrapText:false}};
-  var sCellAltR={font:{sz:10,color:{rgb:'1a1a1a'}},fill:{fgColor:{rgb:'FAFAFA'}},border:sBorder,alignment:{horizontal:'right',vertical:'center'}};
   var sNP={font:{bold:true,sz:10,color:{rgb:'7C3AED'}},border:sBorder,alignment:{horizontal:'right',vertical:'center'}};
-  var sNPAlt={font:{bold:true,sz:10,color:{rgb:'7C3AED'}},fill:{fgColor:{rgb:'FAFAFA'}},border:sBorder,alignment:{horizontal:'right',vertical:'center'}};
 
   var grouped={},unassigned=[];
   orders.forEach(function(o){if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);});
@@ -717,12 +715,11 @@ function exportExcel(){
       }else if(rowData._type==='header'){
         for(var ci=0;ci<numCols;ci++){var a=XLSX.utils.encode_cell({r:r,c:ci});if(ws[a])ws[a].s=(ci===4)?sHeaderR:sHeader;}
       }else if(rowData._type==='data'){
-        var alt=rowData._alt;
         for(var ci=0;ci<numCols;ci++){
           var a=XLSX.utils.encode_cell({r:r,c:ci});if(!ws[a])continue;
-          if(ci===4&&rowData._isNP){ws[a].s=alt?sNPAlt:sNP;}
-          else if(ci===4){ws[a].s=alt?sCellAltR:sCellR;}
-          else{ws[a].s=alt?sCellAlt:sCell;}
+          if(ci===4&&rowData._isNP){ws[a].s=sNP;}
+          else if(ci===4){ws[a].s=sCellR;}
+          else{ws[a].s=sCell;}
         }
       }else if(rowData._type==='title'){
         ws['!merges']=ws['!merges']||[];
@@ -749,7 +746,7 @@ function exportExcel(){
       var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
       var importo=o.isNP?'NP':o.total;
       aoa.push([name,prods,o.address,o.instructions||o.note,importo,o.zone||'N/A']);
-      meta.push({_type:'data',_alt:dataIdx%2===1,_isNP:o.isNP});
+      meta.push({_type:'data',_isNP:o.isNP});
       dataIdx++;
     });
     var ws=XLSX.utils.aoa_to_sheet(aoa);
@@ -776,7 +773,7 @@ function exportExcel(){
       var name=o.customer;if(o.splitPart)name=o.splitPart+'/'+o.splitTotal+' '+name;
       var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
       allAoa.push([name,prods,o.address,o.instructions||o.note,o.isNP?'NP':o.total,o.zone||'N/A']);
-      allMeta.push({_type:'data',_alt:di%2===1,_isNP:o.isNP});di++;
+      allMeta.push({_type:'data',_isNP:o.isNP});di++;
     });
     allAoa.push(['','','','','','']);allMeta.push({_type:'empty'});
   });
