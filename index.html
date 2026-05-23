@@ -78,7 +78,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .col-address{min-width:130px;max-width:220px;color:var(--text2);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .col-notes{min-width:60px;max-width:140px;}
 .col-amount{width:70px;text-align:right;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
-.col-actions{width:40px;text-align:center;}
+.col-actions{width:52px;text-align:center;white-space:nowrap;}
 .col-assign{width:160px;}
 .zone-select{width:100%;background:#fff;border:1px solid #ddd;color:#333;padding:2px 4px;border-radius:4px;font-size:11px;cursor:pointer;}
 .zone-select:hover{border-color:var(--accent);}
@@ -197,7 +197,7 @@ var SEDE_ZONE='RITIRO IN DITTA';
 function isSedeAddress(a){a=a.toLowerCase();return/via\s+teramo\s+9/i.test(a)||/via\s+(eugenio\s+)?montale\s+(27|29)/i.test(a);}
 
 // ============================================================
-var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,dualMode=false;
+var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,dualMode=false,splitOriginals={};
 // Filters: each view has its own, dual views have left+right
 var filters={giri:'TUTTI',giriL:'TUTTI',giriR:'TUTTI',map1:'TUTTI',map1L:'TUTTI',map1R:'TUTTI',mz:'TUTTI',mzL:'TUTTI',mzR:'TUTTI'};
 try{var c=localStorage.getItem('icbk_geocode_cache');if(c)geocodeCache=JSON.parse(c);}catch(e){}
@@ -362,6 +362,10 @@ document.getElementById('splitConfirmBtn').addEventListener('click',function(){
   var zoneNames=Object.keys(zoneAllocs);
   if(zoneNames.length<2){showToast('Serve almeno 2 zone con quantita');return;}
 
+  // Save original for undo/re-split
+  var origId=order.originalId||order.id;
+  splitOriginals[origId]=JSON.parse(JSON.stringify(order));
+
   var origIdx=orders.indexOf(order);
   orders.splice(origIdx,1);
 
@@ -370,10 +374,10 @@ document.getElementById('splitConfirmBtn').addEventListener('click',function(){
     var newProducts=[];
     order.products.forEach(function(p){
       var qty=zoneAllocs[zn]&&zoneAllocs[zn][p.abbr]?zoneAllocs[zn][p.abbr]:0;
-      if(qty>0)newProducts.push({name:p.name,quantity:qty,abbr:p.abbr,step:p.step,colli:Math.ceil(qty/p.step),isPoli:p.isPoli});
+      if(qty>0)newProducts.push({name:p.name,quantity:qty,abbr:p.abbr,step:p.step,colli:Math.ceil(qty/p.step),isPoli:p.isPoli,isClear:p.isClear});
     });
     var splitAmount=zoneAmounts[zn]||0;
-    var newOrder={id:order.id+'_split_'+(i+1),customer:order.customer,products:newProducts,date:order.date,address:order.address,contact:order.contact,instructions:order.instructions,note:order.note,total:splitAmount,isNP:order.isNP,zone:zn,lat:order.lat,lng:order.lng,isSede:false,splitPart:i+1,splitTotal:total,originalId:order.id};
+    var newOrder={id:origId+'_split_'+(i+1),customer:order.customer,products:newProducts,date:order.date,address:order.address,contact:order.contact,instructions:order.instructions,note:order.note,total:splitAmount,isNP:order.isNP,zone:zn,lat:order.lat,lng:order.lng,isSede:false,splitPart:i+1,splitTotal:total,originalId:origId};
     orders.push(newOrder);
   });
 
@@ -383,6 +387,30 @@ document.getElementById('splitConfirmBtn').addEventListener('click',function(){
 });
 
 document.getElementById('splitCloseBtn').addEventListener('click',function(){document.getElementById('splitModal').classList.remove('active');});
+
+function undoSplit(originalId){
+  var orig=splitOriginals[originalId];
+  if(!orig)return;
+  // Remove all split parts
+  orders=orders.filter(function(o){return o.originalId!==originalId;});
+  // Restore original
+  orders.push(JSON.parse(JSON.stringify(orig)));
+  delete splitOriginals[originalId];
+  renderAll();
+  showToast(orig.customer+': divisione annullata');
+}
+
+function reSplit(originalId){
+  // Reconstruct the original from saved data, remove split parts, open modal
+  var orig=splitOriginals[originalId];
+  if(!orig)return;
+  orders=orders.filter(function(o){return o.originalId!==originalId;});
+  var restored=JSON.parse(JSON.stringify(orig));
+  orders.push(restored);
+  renderAll();
+  // Open split modal on restored order
+  setTimeout(function(){openSplitModal(restored.id);},100);
+}
 
 // ============================================================
 // RENDER ZONES
@@ -510,11 +538,13 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede){
     var assignTd=el('td',{className:'col-assign'});
     assignTd.appendChild(buildZoneSelect(order));
     tr.appendChild(assignTd);
-    // Split button (only for non-split orders)
+    // Actions: split / undo / re-split
     var actTd=el('td',{className:'col-actions'});
     if(!order.splitPart){
-      var splitBtn=el('button',{className:'btn-split',title:'Divisione multipla',textContent:'\u2702',onClick:function(e){e.stopPropagation();openSplitModal(order.id);}});
-      actTd.appendChild(splitBtn);
+      actTd.appendChild(el('button',{className:'btn-split',title:'Divisione multipla',textContent:'\u2702',onClick:function(e){e.stopPropagation();openSplitModal(order.id);}}));
+    }else{
+      actTd.appendChild(el('button',{className:'btn-split',title:'Modifica divisione',textContent:'\u270E',onClick:function(e){e.stopPropagation();reSplit(order.originalId);}}));
+      actTd.appendChild(el('button',{className:'btn-split',title:'Annulla divisione',textContent:'\u2716',style:{color:'#dc2626'},onClick:function(e){e.stopPropagation();undoSplit(order.originalId);}}));
     }
     tr.appendChild(actTd);
     tbody.appendChild(tr);
