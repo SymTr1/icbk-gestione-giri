@@ -29,8 +29,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .map-wrapper{height:500px;position:relative;}
 #mapConsegne,#mapZone{width:100%;height:100%;}
 .split-container{display:flex;height:calc(100vh - 200px);min-height:500px;}
-.split-left,.split-right{flex:1;overflow-y:auto;border-right:2px solid var(--accent);}.split-right{border-right:none;border-left:2px solid var(--accent);}
-.split-label{background:var(--accent);color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5;}
+.split-left,.split-right{flex:1;overflow-y:auto;border-right:2px solid #d0d0d0;}.split-right{border-right:none;border-left:2px solid #d0d0d0;}
+.split-label{background:#e8f0fe;color:#2563eb;text-align:center;padding:6px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5;border-bottom:1px solid #d0d0d0;}
 /* Zone header - cargo aligned right */
 .zone-table-header{background:#fafafa;padding:8px 14px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #e0e0e0;border-top:1px solid #e0e0e0;cursor:pointer;user-select:none;}
 .zone-table-header:hover{background:#f0f0f0;}
@@ -61,12 +61,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .col-notes{min-width:60px;max-width:140px;}
 .col-amount{width:70px;text-align:right;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .col-actions{width:40px;text-align:center;}
-.product-item{display:inline;font-size:12px;white-space:nowrap;font-weight:500;}
+.product-item{display:inline;font-size:13px;white-space:nowrap;font-weight:500;}
 .product-bracket{color:var(--accent);font-weight:700;}.product-plus{color:var(--text2);margin:0 2px;}
 .notes-text{font-size:10px;color:var(--orange);font-style:italic;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .np-badge{display:inline-block;background:var(--np-bg);color:var(--np-text);padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;}
 .split-badge{display:inline-block;background:rgba(217,119,6,0.12);color:var(--orange);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:4px;}
-.btn-split{padding:2px 6px;font-size:10px;border-radius:4px;cursor:pointer;background:var(--surface2);border:1px solid var(--border);color:var(--text2);}.btn-split:hover{border-color:var(--orange);color:var(--orange);}
+.btn-split{padding:2px 6px;font-size:10px;border-radius:4px;cursor:pointer;background:#fff;border:1px solid #ddd;color:#999;}.btn-split:hover{border-color:#d97706;color:#d97706;}
 
 /* Split Modal */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;align-items:center;justify-content:center;}
@@ -80,14 +80,14 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .split-product-name{font-weight:600;min-width:90px;max-width:120px;font-size:13px;flex-shrink:0;}
 .split-product-total{color:var(--text2);min-width:60px;font-size:12px;flex-shrink:0;}
 .split-slots{display:flex;gap:6px;flex-wrap:nowrap;flex:1;overflow-x:auto;}
-.split-slot{display:flex;align-items:center;gap:4px;background:var(--surface2);padding:4px 8px;border-radius:6px;flex-shrink:0;}
+.split-slot{display:flex;align-items:center;gap:4px;background:#f5f5f5;padding:4px 8px;border-radius:6px;flex-shrink:0;border:1px solid #e0e0e0;}
 .split-slot label{font-size:10px;color:var(--text2);white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis;}
 .split-slot input{width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;}
 .split-slot input.error{border-color:var(--red);}
 .split-remaining{font-size:11px;min-width:70px;text-align:right;flex-shrink:0;}
 .split-remaining.ok{color:var(--green);}.split-remaining.err{color:var(--red);}
 .split-zone-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
-.split-zone-chip{padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);}
+.split-zone-chip{padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid #ddd;background:#fff;color:#333;}
 .split-zone-chip.selected{border-color:var(--accent);background:rgba(37,99,235,0.1);color:var(--accent);}
 .split-amount-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:2px solid var(--accent);margin-top:8px;flex-wrap:nowrap;}
 .split-amount-row .split-product-name{color:var(--accent);}
