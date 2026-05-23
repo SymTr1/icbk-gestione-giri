@@ -669,84 +669,62 @@ document.getElementById('btnPrint').addEventListener('click',function(){window.p
 document.getElementById('btnExport').addEventListener('click',exportExcel);
 function exportExcel(){
   var wb=XLSX.utils.book_new();
-  var headers=['#','Cliente','Prodotti','Qty Totale','Colli','Kg','Polibox','Indirizzo','Note','Importo','Zona'];
+  var headers=['Cliente','Prodotti','Indirizzo','Note','Importo','Zona'];
+  var colWidths=[{wch:28},{wch:38},{wch:32},{wch:22},{wch:10},{wch:16}];
+  // Print setup: fit all columns on one page, landscape
+  var printSetup={paperSize:9,orientation:'landscape',fitToWidth:1,fitToHeight:0,scale:0};
 
-  // Group orders by zone
   var grouped={},unassigned=[];
   orders.forEach(function(o){if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);});
-
-  // Build zone list in display order
   var zoneList=[];var seen={};
   ZONE_DISPLAY_ORDER.forEach(function(zn){if(seen[zn])return;seen[zn]=true;if(grouped[zn])zoneList.push(zn);});
   Object.keys(grouped).forEach(function(zn){if(!seen[zn]&&zn!==SEDE_ZONE)zoneList.push(zn);});
   if(unassigned.length>0)zoneList.push('NON ASSEGNATI');
   if(grouped[SEDE_ZONE])zoneList.push(SEDE_ZONE);
 
-  function buildSheetData(orderList,zoneName){
-    var rows=[];
-    // Cargo summary row
+  function orderRow(o){
+    var name=o.customer;if(o.splitPart)name=o.splitPart+'/'+o.splitTotal+' '+name;
+    var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
+    return[name,prods,o.address,o.instructions||o.note,o.isNP?'NP':o.total,o.zone||'N/A'];
+  }
+
+  function cargoLine(orderList,zoneName){
     var cargo=calcCargo(orderList);
-    var summaryParts=[zoneName+' - '+orderList.length+' consegne'];
-    Object.keys(cargo.productTotals).forEach(function(abbr){summaryParts.push(cargo.productTotals[abbr].qty+' x '+abbr);});
-    summaryParts.push('Colli: '+cargo.totalColli+' ('+cargo.totalKg+' kg)');
-    if(cargo.totalPoli>0)summaryParts.push(cargo.totalPoli+' Polibox');
-    rows.push([summaryParts.join('  |  ')]);
-    rows.push([]);// empty row
-    rows.push(headers);
-    // Data rows
-    orderList.forEach(function(o,idx){
-      var name=o.customer;
-      if(o.splitPart)name=o.splitPart+'/'+o.splitTotal+' '+name;
-      var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
-      var qty=o.products.reduce(function(s,p){return s+p.quantity;},0);
-      var colli=o.products.reduce(function(s,p){return s+(p.isPoli?0:p.colli);},0);
-      var poli=o.products.reduce(function(s,p){return s+(p.isPoli?p.quantity:0);},0);
-      var importo=o.isNP?'NP':o.total;
-      rows.push([idx+1,name,prods,qty,colli,colli*10,poli,o.address,o.instructions||o.note,importo,o.zone||'N/A']);
-    });
-    // Totals row
-    rows.push([]);
-    var totQty=orderList.reduce(function(s,o){return s+o.products.reduce(function(ss,p){return ss+p.quantity;},0);},0);
-    var totColli=orderList.reduce(function(s,o){return s+o.products.reduce(function(ss,p){return ss+(p.isPoli?0:p.colli);},0);},0);
-    var totPoli=orderList.reduce(function(s,o){return s+o.products.reduce(function(ss,p){return ss+(p.isPoli?p.quantity:0);},0);},0);
-    rows.push(['','TOTALE','',totQty,totColli,totColli*10,totPoli,'','','','']);
-    return rows;
+    var parts=[zoneName,''+orderList.length+' consegne'];
+    Object.keys(cargo.productTotals).forEach(function(abbr){parts.push(cargo.productTotals[abbr].qty+' x '+abbr);});
+    parts.push('Colli: '+cargo.totalColli+' ('+cargo.totalKg+' kg)');
+    if(cargo.totalPoli>0)parts.push(cargo.totalPoli+' Polibox');
+    return parts.join('  |  ');
   }
 
   // Sheet "TUTTI"
-  var allRows=[];
-  allRows.push(['RIEPILOGO GIRI - '+new Date().toLocaleDateString('it-IT')]);
-  allRows.push([]);
-  allRows.push(headers);
-  var globalIdx=0;
-  // All orders sorted by zone display order
+  var allRows=[['RIEPILOGO GIRI - '+new Date().toLocaleDateString('it-IT')],[]];
   zoneList.forEach(function(zn){
     var list=zn==='NON ASSEGNATI'?unassigned:grouped[zn];
-    if(!list)return;
-    list.forEach(function(o){
-      globalIdx++;
-      var name=o.customer;if(o.splitPart)name=o.splitPart+'/'+o.splitTotal+' '+name;
-      var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
-      var qty=o.products.reduce(function(s,p){return s+p.quantity;},0);
-      var colli=o.products.reduce(function(s,p){return s+(p.isPoli?0:p.colli);},0);
-      var poli=o.products.reduce(function(s,p){return s+(p.isPoli?p.quantity:0);},0);
-      allRows.push([globalIdx,name,prods,qty,colli,colli*10,poli,o.address,o.instructions||o.note,o.isNP?'NP':o.total,o.zone||'N/A']);
-    });
+    if(!list||!list.length)return;
+    allRows.push([cargoLine(list,zn)]);
+    allRows.push(headers);
+    list.forEach(function(o){allRows.push(orderRow(o));});
+    allRows.push([]);
   });
   var wsTutti=XLSX.utils.aoa_to_sheet(allRows);
-  wsTutti['!cols']=[{wch:4},{wch:30},{wch:40},{wch:8},{wch:6},{wch:7},{wch:8},{wch:35},{wch:25},{wch:10},{wch:18}];
+  wsTutti['!cols']=colWidths;
+  wsTutti['!pageSetup']=printSetup;
   XLSX.utils.book_append_sheet(wb,wsTutti,'TUTTI');
 
   // One sheet per zone
   zoneList.forEach(function(zn){
     var list=zn==='NON ASSEGNATI'?unassigned:grouped[zn];
-    if(!list||list.length===0)return;
-    var data=buildSheetData(list,zn);
-    var ws=XLSX.utils.aoa_to_sheet(data);
-    ws['!cols']=[{wch:4},{wch:30},{wch:40},{wch:8},{wch:6},{wch:7},{wch:8},{wch:35},{wch:25},{wch:10},{wch:18}];
-    // Sheet name max 31 chars
-    var sheetName=zn.substring(0,31);
-    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+    if(!list||!list.length)return;
+    var rows=[];
+    rows.push([cargoLine(list,zn)]);
+    rows.push([]);
+    rows.push(headers);
+    list.forEach(function(o){rows.push(orderRow(o));});
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=colWidths;
+    ws['!pageSetup']=printSetup;
+    XLSX.utils.book_append_sheet(wb,ws,zn.substring(0,31));
   });
 
   XLSX.writeFile(wb,'giri_'+new Date().toISOString().slice(0,10)+'.xlsx');
