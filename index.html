@@ -79,6 +79,10 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .col-notes{min-width:60px;max-width:140px;}
 .col-amount{width:70px;text-align:right;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .col-actions{width:40px;text-align:center;}
+.col-assign{width:160px;}
+.zone-select{width:100%;background:#fff;border:1px solid #ddd;color:#333;padding:2px 4px;border-radius:4px;font-size:11px;cursor:pointer;}
+.zone-select:hover{border-color:var(--accent);}
+.zone-select:focus{outline:none;border-color:var(--accent);}
 .product-item{display:inline;font-size:13px;white-space:nowrap;font-weight:500;}
 .product-bracket{color:var(--accent);font-weight:700;}.product-plus{color:var(--text2);margin:0 2px;}
 .notes-text{font-size:10px;color:var(--orange);font-style:italic;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -382,6 +386,60 @@ document.getElementById('splitCloseBtn').addEventListener('click',function(){doc
 // ============================================================
 // RENDER ZONES
 // ============================================================
+function getZoneStats(){
+  var stats={};
+  // Init all zones with 0
+  ZONE_DISPLAY_ORDER.forEach(function(zn){if(!stats[zn])stats[zn]={count:0,kg:0};});
+  stats[SEDE_ZONE]={count:0,kg:0};stats['NON ASSEGNATI']={count:0,kg:0};
+  orders.forEach(function(o){
+    var z=o.zone||'NON ASSEGNATI';
+    if(!stats[z])stats[z]={count:0,kg:0};
+    stats[z].count++;
+    o.products.forEach(function(p){if(!p.isPoli)stats[z].kg+=p.colli*10;});
+  });
+  return stats;
+}
+
+function buildZoneSelect(order){
+  var stats=getZoneStats();
+  var select=document.createElement('select');
+  select.className='zone-select';
+  // Current zone option
+  var currentZone=order.zone||'';
+  // Build options: all zones in display order
+  var optNone=document.createElement('option');
+  optNone.value='';optNone.textContent='-- Non assegnato ('+stats['NON ASSEGNATI'].count+')';
+  if(!order.zone)optNone.selected=true;
+  select.appendChild(optNone);
+
+  var seen={};
+  ZONE_DISPLAY_ORDER.forEach(function(zn){
+    if(seen[zn])return;seen[zn]=true;
+    var s=stats[zn]||{count:0,kg:0};
+    var opt=document.createElement('option');
+    opt.value=zn;
+    opt.textContent=zn+' ('+s.count+' cons, '+s.kg+'kg)';
+    if(currentZone===zn)opt.selected=true;
+    select.appendChild(opt);
+  });
+  // SEDE
+  var ss=stats[SEDE_ZONE]||{count:0,kg:0};
+  var optS=document.createElement('option');
+  optS.value=SEDE_ZONE;optS.textContent='RITIRO IN DITTA ('+ss.count+' cons, '+ss.kg+'kg)';
+  if(currentZone===SEDE_ZONE)optS.selected=true;
+  select.appendChild(optS);
+
+  select.addEventListener('change',function(){
+    var newZone=this.value;
+    var old=order.zone||'NON ASSEGNATI';
+    order.zone=newZone||null;
+    order.isSede=(order.zone===SEDE_ZONE);
+    renderAll();
+    showToast(order.customer+': '+old+' \u2192 '+(newZone||'NON ASSEGNATI'));
+  });
+  return select;
+}
+
 function buildFilterBar(barId,currentFilter,onSelect){
   var bar=document.getElementById(barId);if(!bar)return;
   while(bar.firstChild)bar.removeChild(bar.firstChild);
@@ -433,7 +491,7 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede){
   header.appendChild(cargoDiv);header.appendChild(el('span',{className:'chevron',textContent:'\u25BC'}));section.appendChild(header);
 
   var tw=el('div',{className:'zone-table-content'});var table=el('table',{className:'orders-table'});var thead=el('thead'),hr=el('tr');
-  [{t:'#',c:'col-num'},{t:'Cliente',c:'col-customer'},{t:'Prodotti',c:'col-products'},{t:'Indirizzo',c:'col-address'},{t:'Note',c:'col-notes'},{t:'Importo',c:'col-amount'},{t:'',c:'col-actions'}].forEach(function(h){hr.appendChild(el('th',{className:h.c,textContent:h.t}));});
+  [{t:'#',c:'col-num'},{t:'Cliente',c:'col-customer'},{t:'Prodotti',c:'col-products'},{t:'Indirizzo',c:'col-address'},{t:'Note',c:'col-notes'},{t:'Importo',c:'col-amount'},{t:'Zona',c:'col-assign'},{t:'',c:'col-actions'}].forEach(function(h){hr.appendChild(el('th',{className:h.c,textContent:h.t}));});
   thead.appendChild(hr);table.appendChild(thead);var tbody=el('tbody');
   zoneOrders.forEach(function(order,idx){
     var tr=el('tr',{draggable:'true','data-order-id':order.id,'data-zone':zoneName});
@@ -447,6 +505,10 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede){
     tr.appendChild(el('td',{className:'col-address',title:order.address,textContent:order.address}));
     var ntd=el('td',{className:'col-notes'}),nt=order.instructions||order.note;if(nt)ntd.appendChild(el('span',{className:'notes-text',title:nt,textContent:nt}));tr.appendChild(ntd);
     var atd=el('td',{className:'col-amount'});if(order.isNP)atd.appendChild(el('span',{className:'np-badge',textContent:'NP'}));else atd.textContent='\u20AC'+order.total.toFixed(2);tr.appendChild(atd);
+    // Zone assign select
+    var assignTd=el('td',{className:'col-assign'});
+    assignTd.appendChild(buildZoneSelect(order));
+    tr.appendChild(assignTd);
     // Split button (only for non-split orders)
     var actTd=el('td',{className:'col-actions'});
     if(!order.splitPart){
