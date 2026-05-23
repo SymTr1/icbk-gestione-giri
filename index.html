@@ -408,8 +408,8 @@ function buildPopupContent(o){
   l+=o.isNP?'<div class="popup-amount popup-np">NP</div>':'<div class="popup-amount">\u20AC'+o.total.toFixed(2)+'</div>';
   return l;
 }
-function initMapConsegne(){if(mapConsegne)return;mapConsegne=L.map('mapConsegne').setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapConsegne);}
-function initMapZone(){if(mapZone)return;mapZone=L.map('mapZone').setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapZone);ZONES.forEach(function(z){L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:2,fillOpacity:.15}).addTo(mapZone).bindTooltip(z.name,{permanent:false,direction:'center'});});}
+function initMapConsegne(){if(mapConsegne)return;mapConsegne=L.map('mapConsegne',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapConsegne);mapConsegne.on('click',function(){mapConsegne.scrollWheelZoom.enable();});mapConsegne.on('mouseout',function(){mapConsegne.scrollWheelZoom.disable();});}
+function initMapZone(){if(mapZone)return;mapZone=L.map('mapZone',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapZone);mapZone.on('click',function(){mapZone.scrollWheelZoom.enable();});mapZone.on('mouseout',function(){mapZone.scrollWheelZoom.disable();});ZONES.forEach(function(z){L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:2,fillOpacity:.15}).addTo(mapZone).bindTooltip(z.name,{permanent:false,direction:'center'});});}
 function refreshMapMarkers(map,arr){
   arr.forEach(function(m){map.removeLayer(m);});arr.length=0;
   orders.forEach(function(o){if(!o.lat||!o.lng)return;
@@ -532,11 +532,18 @@ function processFile(file){
       document.getElementById('loadingProgress').textContent=(idx+1)+'/'+total;
       var o=orders[idx];
       if(o.isSede){idx++;nextOrder();return;}
-      var wasCached=!!geocodeCache[o.address.toLowerCase().trim()];
+      var ck=o.address.toLowerCase().trim();
+      var wasCached=!!geocodeCache[ck];
+      // Use cache first, then Nominatim, then Google fallback
+      if(wasCached){
+        var cached=geocodeCache[ck];
+        o.lat=cached.lat;o.lng=cached.lng;o.zone=findZone(cached.lng,cached.lat);
+        idx++;nextOrder();return;
+      }
       geocodeNominatim(o.address).then(function(r){
-        if(r){o.lat=r.lat;o.lng=r.lng;o.zone=findZone(r.lng,r.lat);geocodeCache[o.address.toLowerCase().trim()]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}
+        if(r){o.lat=r.lat;o.lng=r.lng;o.zone=findZone(r.lng,r.lat);geocodeCache[ck]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}
         else failedGeo.push(o);
-        idx++;wasCached?nextOrder():setTimeout(nextOrder,1100);
+        idx++;setTimeout(nextOrder,1100);
       });
     }
 
