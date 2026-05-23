@@ -24,10 +24,13 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .tab{padding:10px 20px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;user-select:none;}.tab:hover{color:var(--text);}.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 .toolbar{display:flex;gap:10px;padding:10px 20px;flex-wrap:wrap;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);}
 .toolbar input[type="text"]{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;width:240px;}
-.btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;}.btn:hover{border-color:var(--accent);}.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}.btn-danger{background:var(--red);border-color:var(--red);color:#fff;}
+.btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;}.btn:hover{border-color:var(--accent);}.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}.btn-danger{background:var(--red);border-color:var(--red);color:#fff;}.btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
 .tab-panel{display:none;}.tab-panel.active{display:block;}
 .map-wrapper{height:500px;position:relative;}
 #mapConsegne,#mapZone{width:100%;height:100%;}
+.dual-view{display:none;}
+.dual-mode .dual-view{display:block;}
+.dual-mode .single-view{display:none;}
 .split-container{display:flex;height:calc(100vh - 200px);min-height:500px;}
 .split-left,.split-right{flex:1;overflow-y:auto;border-right:2px solid #d0d0d0;}.split-right{border-right:none;border-left:2px solid #d0d0d0;}
 .split-label{background:#e8f0fe;color:#2563eb;text-align:center;padding:6px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5;border-bottom:1px solid #d0d0d0;}
@@ -142,10 +145,21 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 
 <div class="main" id="mainView">
   <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mapConsegne">Mappa Consegne</div><div class="tab" data-tab="mapZone">Mappa + Zone</div></div>
-  <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta CSV</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
-  <div class="tab-panel active" id="panel-giri"><div class="zone-filter-bar" id="zoneFilterBar"></div><div id="zonesContainer"></div></div>
-  <div class="tab-panel" id="panel-mapConsegne"><div class="zone-filter-bar" id="zoneFilterBarMap1"></div><div class="map-wrapper"><div id="mapConsegne"></div></div></div>
-  <div class="tab-panel" id="panel-mapZone"><div class="zone-filter-bar" id="zoneFilterBarMap2"></div><div class="map-wrapper"><div id="mapZone"></div></div><div class="split-container"><div class="split-left"><div class="split-label">TRASCINA DA QUI</div><div id="splitLeft"></div></div><div class="split-right"><div class="split-label">RILASCIA QUI (o viceversa)</div><div id="splitRight"></div></div></div></div>
+  <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta CSV</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
+  <div class="tab-panel active" id="panel-giri">
+    <div class="single-view" id="giriSingle"><div class="zone-filter-bar" id="zfGiri"></div><div id="zonesContainer"></div></div>
+    <div class="dual-view" id="giriDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfGiriL"></div><div id="giriDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfGiriR"></div><div id="giriDualRight"></div></div></div></div>
+  </div>
+  <div class="tab-panel" id="panel-mapConsegne">
+    <div class="zone-filter-bar" id="zfMap1"></div>
+    <div class="map-wrapper"><div id="mapConsegne"></div></div>
+    <div class="dual-view" id="map1Dual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMap1L"></div><div id="map1DualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMap1R"></div><div id="map1DualRight"></div></div></div></div>
+  </div>
+  <div class="tab-panel" id="panel-mapZone">
+    <div class="map-wrapper"><div id="mapZone"></div></div>
+    <div class="single-view" id="mzSingle"><div class="zone-filter-bar" id="zfMZ"></div><div id="mzContainer"></div></div>
+    <div class="dual-view" id="mzDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMZL"></div><div id="mzDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMZR"></div><div id="mzDualRight"></div></div></div></div>
+  </div>
 </div>
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div class="loading-text" id="loadingText">Geocoding indirizzi...</div><div class="loading-progress" id="loadingProgress"></div></div>
 <div class="toast" id="toast"></div>
@@ -170,7 +184,9 @@ var SEDE_ZONE='RITIRO IN DITTA';
 function isSedeAddress(a){a=a.toLowerCase();return/via\s+teramo\s+9/i.test(a)||/via\s+(eugenio\s+)?montale\s+(27|29)/i.test(a);}
 
 // ============================================================
-var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,activeZoneFilter='TUTTI',activeMapFilter1='TUTTI',activeMapFilter2='TUTTI';
+var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,dualMode=false;
+// Filters: each view has its own, dual views have left+right
+var filters={giri:'TUTTI',giriL:'TUTTI',giriR:'TUTTI',map1:'TUTTI',map1L:'TUTTI',map1R:'TUTTI',mz:'TUTTI',mzL:'TUTTI',mzR:'TUTTI'};
 try{var c=localStorage.getItem('icbk_geocode_cache');if(c)geocodeCache=JSON.parse(c);}catch(e){}
 
 // ============================================================
@@ -465,22 +481,37 @@ var draggedOrderId=null;
 function attachDrag(){document.querySelectorAll('.orders-table tr[draggable]').forEach(function(row){row.addEventListener('dragstart',function(e){draggedOrderId=this.getAttribute('data-order-id');this.classList.add('dragging');e.dataTransfer.effectAllowed='move';});row.addEventListener('dragend',function(){this.classList.remove('dragging');document.querySelectorAll('.zone-section').forEach(function(s){s.classList.remove('drag-target');});});});document.querySelectorAll('.zone-section').forEach(function(section){section.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';section.classList.add('drag-target');});section.addEventListener('dragleave',function(){section.classList.remove('drag-target');});section.addEventListener('drop',function(e){e.preventDefault();section.classList.remove('drag-target');var tz=section.getAttribute('data-zone');if(!draggedOrderId||!tz)return;var order=orders.find(function(o){return o.id===draggedOrderId;});if(order){var old=order.zone||'NON ASSEGNATI';order.zone=tz==='NON ASSEGNATI'?null:tz;order.isSede=(order.zone===SEDE_ZONE);renderAll();showToast(order.customer+': '+old+' \u2192 '+tz);}draggedOrderId=null;});});}
 function renderAll(){
   var f=document.getElementById('searchInput').value;
-  // Filter bars
-  buildFilterBar('zoneFilterBar',activeZoneFilter,function(zn){activeZoneFilter=zn;renderAll();});
-  buildFilterBar('zoneFilterBarMap1',activeMapFilter1,function(zn){activeMapFilter1=zn;renderAll();});
-  buildFilterBar('zoneFilterBarMap2',activeMapFilter2,function(zn){activeMapFilter2=zn;renderAll();});
-  // Tables
-  renderZones('zonesContainer',f,activeZoneFilter);
-  renderZones('splitLeft',f,activeMapFilter2);
-  renderZones('splitRight',f,activeMapFilter2);
+  function fb(id,key){buildFilterBar(id,filters[key],function(zn){filters[key]=zn;renderAll();});}
+  // Giri per Zona
+  if(dualMode){
+    fb('zfGiriL','giriL');fb('zfGiriR','giriR');
+    renderZones('giriDualLeft',f,filters.giriL);renderZones('giriDualRight',f,filters.giriR);
+  }else{
+    fb('zfGiri','giri');renderZones('zonesContainer',f,filters.giri);
+  }
+  // Mappa Consegne
+  fb('zfMap1','map1');
+  if(dualMode){fb('zfMap1L','map1L');fb('zfMap1R','map1R');renderZones('map1DualLeft',f,filters.map1L);renderZones('map1DualRight',f,filters.map1R);}
+  // Mappa + Zone
+  if(dualMode){
+    fb('zfMZL','mzL');fb('zfMZR','mzR');
+    renderZones('mzDualLeft',f,filters.mzL);renderZones('mzDualRight',f,filters.mzR);
+  }else{
+    fb('zfMZ','mz');renderZones('mzContainer',f,filters.mz);
+  }
   updateHeaderStats();
-  // Maps with zone filter
-  if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers,activeMapFilter1);
-  if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers,activeMapFilter2);
+  if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers,filters.map1);
+  if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers,dualMode?'TUTTI':filters.mz);
 }
 
 // TABS + TOOLBAR
 document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});this.classList.add('active');document.getElementById('panel-'+this.getAttribute('data-tab')).classList.add('active');if(this.getAttribute('data-tab')==='mapConsegne'){initMapConsegne();setTimeout(function(){mapConsegne.invalidateSize();refreshMapMarkers(mapConsegne,mapConsegneMarkers);},100);}if(this.getAttribute('data-tab')==='mapZone'){initMapZone();setTimeout(function(){mapZone.invalidateSize();refreshMapMarkers(mapZone,mapZoneMarkers);},100);}});});
+document.getElementById('btnDual').addEventListener('click',function(){
+  dualMode=!dualMode;
+  this.classList.toggle('active',dualMode);
+  document.getElementById('mainView').classList.toggle('dual-mode',dualMode);
+  renderAll();
+});
 document.getElementById('searchInput').addEventListener('input',function(){renderAll();});
 document.getElementById('btnExpand').addEventListener('click',function(){document.querySelectorAll('.zone-table-content.collapsed').forEach(function(e){e.classList.remove('collapsed');});document.querySelectorAll('.zone-table-header.collapsed').forEach(function(e){e.classList.remove('collapsed');});});
 document.getElementById('btnCollapse').addEventListener('click',function(){document.querySelectorAll('.zone-table-content').forEach(function(e){e.classList.add('collapsed');});document.querySelectorAll('.zone-table-header').forEach(function(e){e.classList.add('collapsed');});});
