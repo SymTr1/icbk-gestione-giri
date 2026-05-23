@@ -7,57 +7,30 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-:root {
-  --bg:#0f1117;--surface:#1a1d27;--surface2:#242836;--border:#2e3345;
-  --text:#e4e6ef;--text2:#9298b0;--accent:#4f8cff;--accent2:#3a6fd8;
-  --green:#34d399;--red:#f87171;--orange:#fb923c;
-  --np-bg:#2d1f3d;--np-text:#c084fc;--sede-color:#38bdf8;
-}
+:root{--bg:#0f1117;--surface:#1a1d27;--surface2:#242836;--border:#2e3345;--text:#e4e6ef;--text2:#9298b0;--accent:#4f8cff;--accent2:#3a6fd8;--green:#34d399;--red:#f87171;--orange:#fb923c;--np-bg:#2d1f3d;--np-text:#c084fc;--sede-color:#38bdf8;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;}
-
 .header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;}
-.header h1{font-size:18px;font-weight:700;white-space:nowrap;}
-.header h1 span{color:var(--accent);}
+.header h1{font-size:18px;font-weight:700;white-space:nowrap;}.header h1 span{color:var(--accent);}
 .header-stats{display:flex;gap:14px;margin-left:auto;font-size:12px;flex-wrap:wrap;}
-.header-stat{display:flex;align-items:center;gap:4px;color:var(--text2);white-space:nowrap;}
-.header-stat strong{color:var(--text);font-size:14px;}
-
+.header-stat{display:flex;align-items:center;gap:4px;color:var(--text2);white-space:nowrap;}.header-stat strong{color:var(--text);font-size:14px;}
 .upload-area{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:40px;}
 .upload-box{border:2px dashed var(--border);border-radius:16px;padding:60px 80px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);}
 .upload-box:hover,.upload-box.dragover{border-color:var(--accent);background:var(--surface2);}
 .upload-box svg{width:48px;height:48px;color:var(--accent);margin-bottom:16px;}
-.upload-box h2{font-size:18px;margin-bottom:8px;}
-.upload-box p{color:var(--text2);font-size:14px;}
-
-.main{display:none;}
-.main.active{display:block;}
-
+.upload-box h2{font-size:18px;margin-bottom:8px;}.upload-box p{color:var(--text2);font-size:14px;}
+.main{display:none;}.main.active{display:block;}
 .tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:45px;z-index:90;}
-.tab{padding:10px 20px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;user-select:none;}
-.tab:hover{color:var(--text);}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
-
+.tab{padding:10px 20px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;user-select:none;}.tab:hover{color:var(--text);}.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 .toolbar{display:flex;gap:10px;padding:10px 20px;flex-wrap:wrap;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);}
 .toolbar input[type="text"]{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;width:240px;}
-.btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;}
-.btn:hover{border-color:var(--accent);}
-.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
-
-.tab-panel{display:none;}
-.tab-panel.active{display:block;}
-
-/* MAP */
+.btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;}.btn:hover{border-color:var(--accent);}.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
 .map-wrapper{height:500px;position:relative;}
 #mapConsegne,#mapZone{width:100%;height:100%;}
-
-/* SPLIT SCREEN for Mappa+Zone */
 .split-container{display:flex;height:calc(100vh - 200px);min-height:500px;}
-.split-left,.split-right{flex:1;overflow-y:auto;border-right:2px solid var(--accent);}
-.split-right{border-right:none;border-left:2px solid var(--accent);}
+.split-left,.split-right{flex:1;overflow-y:auto;border-right:2px solid var(--accent);}.split-right{border-right:none;border-left:2px solid var(--accent);}
 .split-label{background:var(--accent);color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5;}
-
-/* ZONE HEADER */
 .zone-table-header{background:var(--surface);padding:8px 14px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);border-top:1px solid var(--border);cursor:pointer;user-select:none;flex-wrap:wrap;}
 .zone-table-header:hover{background:var(--surface2);}
 .zone-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
@@ -69,60 +42,65 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .chevron{transition:transform .2s;font-size:14px;color:var(--text2);margin-left:auto;flex-shrink:0;}
 .zone-table-header.collapsed .chevron{transform:rotate(-90deg);}
 .zone-table-content.collapsed{display:none;}
-
-.zone-section.sede-zone .zone-table-header{background:rgba(56,189,248,0.08);}
-.zone-section.sede-zone .zone-title{color:var(--sede-color);}
+.zone-section.sede-zone .zone-table-header{background:rgba(56,189,248,0.08);}.zone-section.sede-zone .zone-title{color:var(--sede-color);}
 .zone-section.unassigned .zone-table-header{background:rgba(248,113,113,0.08);}
 .zone-section.drag-target .zone-table-header{background:rgba(79,140,255,0.2);border-color:var(--accent);}
-
-/* TABLE */
 .orders-table{width:100%;border-collapse:collapse;}
 .orders-table th{background:var(--surface2);padding:5px 8px;text-align:left;font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap;}
 .orders-table td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;font-size:12px;}
 .orders-table tr:hover td{background:var(--surface2);}
-.orders-table tr[draggable="true"]{cursor:grab;}
-.orders-table tr.dragging td{opacity:.4;}
-
+.orders-table tr[draggable="true"]{cursor:grab;}.orders-table tr.dragging td{opacity:.4;}
 .col-num{width:28px;text-align:center;color:var(--text2);}
 .col-customer{min-width:120px;max-width:200px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .col-products{min-width:180px;}
 .col-address{min-width:130px;max-width:220px;color:var(--text2);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .col-notes{min-width:60px;max-width:140px;}
 .col-amount{width:70px;text-align:right;font-weight:600;white-space:nowrap;}
-
 .product-item{display:inline;font-size:12px;white-space:nowrap;font-weight:500;}
 .product-bracket{color:var(--accent);font-weight:700;}
 .product-plus{color:var(--text2);margin:0 2px;}
 .notes-text{font-size:10px;color:var(--orange);font-style:italic;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .np-badge{display:inline-block;background:var(--np-bg);color:var(--np-text);padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;}
-
 .loading-overlay{display:none;position:fixed;inset:0;background:rgba(15,17,23,.85);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
 .loading-overlay.active{display:flex;}
 .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-text{color:var(--text2);font-size:14px;}
 .loading-progress{color:var(--text);font-size:13px;font-weight:500;}
-.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;z-index:300;transform:translateY(100px);opacity:0;transition:all .3s;}
-.toast.show{transform:translateY(0);opacity:1;}
-
-::-webkit-scrollbar{width:6px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
-
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;z-index:300;transform:translateY(100px);opacity:0;transition:all .3s;}.toast.show{transform:translateY(0);opacity:1;}
+::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 .leaflet-popup-content{font-size:12px;line-height:1.5;}
 .popup-title{font-weight:700;font-size:13px;margin-bottom:4px;}
-.popup-product{display:block;font-size:12px;color:#555;padding:1px 0;}
-.popup-product b{color:#222;}
+.popup-product{display:block;font-size:12px;color:#555;padding:1px 0;}.popup-product b{color:#222;}
 .popup-address{font-size:11px;color:#888;margin-top:6px;border-top:1px solid #eee;padding-top:4px;}
-.popup-np{color:#9333ea;font-weight:700;}
-.popup-amount{font-weight:600;margin-top:4px;font-size:13px;}
+.popup-np{color:#9333ea;font-weight:700;}.popup-amount{font-weight:600;margin-top:4px;font-size:13px;}
 .popup-zone{font-size:11px;color:#666;margin-top:2px;}
 
+/* RESOLVE PANEL */
+.resolve-overlay{display:none;position:fixed;inset:0;background:rgba(15,17,23,.92);z-index:250;overflow-y:auto;padding:20px;}
+.resolve-overlay.active{display:block;}
+.resolve-panel{max-width:1100px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.resolve-header{padding:16px 20px;background:rgba(248,113,113,0.1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.resolve-header h2{font-size:16px;font-weight:700;}.resolve-header .resolve-count{color:var(--red);font-weight:700;}
+.resolve-skip{margin-left:auto;}
+.resolve-item{display:flex;border-bottom:1px solid var(--border);min-height:220px;}
+.resolve-item.resolved{opacity:.5;background:rgba(52,211,153,0.05);}
+.resolve-info{flex:1;padding:14px 20px;display:flex;flex-direction:column;gap:8px;}
+.resolve-customer{font-weight:700;font-size:14px;}
+.resolve-address{color:var(--text2);font-size:13px;}
+.resolve-products{font-size:12px;color:var(--text2);}
+.resolve-search{display:flex;gap:8px;margin-top:4px;}
+.resolve-search input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;}
+.resolve-search button{white-space:nowrap;}
+.resolve-result{font-size:11px;color:var(--green);margin-top:2px;min-height:16px;}
+.resolve-map{width:400px;min-width:400px;position:relative;}
+.resolve-map-inner{width:100%;height:100%;}
+.resolve-hint{position:absolute;bottom:8px;left:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;text-align:center;pointer-events:none;z-index:10;}
+
 @media print{
-  .header,.tabs,.toolbar,.upload-area,.map-wrapper,.btn,.split-label{display:none !important;}
+  .header,.tabs,.toolbar,.upload-area,.map-wrapper,.btn,.split-label,.resolve-overlay{display:none !important;}
   .main,.tab-panel{display:block !important;}
-  .split-container{display:block!important;height:auto!important;}
-  .split-left,.split-right{border:none!important;}
+  .split-container{display:block!important;height:auto!important;}.split-left,.split-right{border:none!important;}
   body{background:#fff;color:#000;font-size:10px;}
   .orders-table th{background:#eee !important;color:#000 !important;}
   .orders-table td{color:#000 !important;border-color:#ccc !important;}
@@ -132,19 +110,25 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 </style>
 </head>
 <body>
-
-<div class="header">
-  <h1><span>ICBK</span> Gestione Giri</h1>
-  <div class="header-stats" id="headerStats"></div>
-</div>
-
+<div class="header"><h1><span>ICBK</span> Gestione Giri</h1><div class="header-stats" id="headerStats"></div></div>
 <div class="upload-area" id="uploadArea">
   <div class="upload-box" id="uploadBox">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-    <h2>Carica il file CSV degli ordini</h2>
-    <p>Trascina qui o clicca per selezionare</p>
+    <h2>Carica il file CSV degli ordini</h2><p>Trascina qui o clicca per selezionare</p>
   </div>
   <input type="file" id="fileInput" accept=".csv" style="display:none">
+</div>
+
+<!-- RESOLVE UNFOUND ADDRESSES -->
+<div class="resolve-overlay" id="resolveOverlay">
+  <div class="resolve-panel">
+    <div class="resolve-header">
+      <h2>Indirizzi non trovati: <span class="resolve-count" id="resolveCount">0</span></h2>
+      <p style="color:var(--text2);font-size:12px;margin-left:12px">Cerca l'indirizzo corretto o clicca sulla mappa per posizionare</p>
+      <button class="btn btn-primary resolve-skip" id="resolveSkipBtn">Continua senza risolvere</button>
+    </div>
+    <div id="resolveList"></div>
+  </div>
 </div>
 
 <div class="main" id="mainView">
@@ -161,338 +145,243 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     <button class="btn" id="btnExport">Esporta CSV</button>
     <button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button>
   </div>
-
   <div class="tab-panel active" id="panel-giri"><div id="zonesContainer"></div></div>
-
   <div class="tab-panel" id="panel-mapConsegne"><div class="map-wrapper"><div id="mapConsegne"></div></div></div>
-
   <div class="tab-panel" id="panel-mapZone">
     <div class="map-wrapper"><div id="mapZone"></div></div>
-    <div class="split-container">
-      <div class="split-left">
-        <div class="split-label">TRASCINA DA QUI</div>
-        <div id="splitLeft"></div>
-      </div>
-      <div class="split-right">
-        <div class="split-label">RILASCIA QUI (o viceversa)</div>
-        <div id="splitRight"></div>
-      </div>
-    </div>
+    <div class="split-container"><div class="split-left"><div class="split-label">TRASCINA DA QUI</div><div id="splitLeft"></div></div><div class="split-right"><div class="split-label">RILASCIA QUI (o viceversa)</div><div id="splitRight"></div></div></div>
   </div>
 </div>
-
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="spinner"></div>
-  <div class="loading-text" id="loadingText">Geocoding indirizzi...</div>
-  <div class="loading-progress" id="loadingProgress"></div>
-</div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div class="loading-text" id="loadingText">Geocoding indirizzi...</div><div class="loading-progress" id="loadingProgress"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
 // ============================================================
-// CONFIG
+// CONFIG (NP, ABBREVIATIONS, STEPS, ZONES) - same as before
 // ============================================================
 var NP_CLIENTS=new Set(["&MANGIA S.R.L.","10CC GLOBAL SHOP S.R.L.","3G S.R.L.","6AM SNC DI TOZZO, DELL'ORTO, RUBINO, ALAMPI E RAVANELLI","AD MAIORA S.R.L.","AD MELIORA S.A.S. DI CIOTTI MARIA GIOVANNA & C.","AL.MA.SI S.R.L.","ALCATRAZ SRL","ALTIORLAB SRL","ALTRIMENTI SRL SEMPLIFICATA","AMEN MILANO SRL","ANDREA BENOLLI ED ENRICO CONTRO & C.","ARCA MILANO S.R.L.S.","Arte del Vino srl","Associazione Culturale King Room","Associazione Sportiva Dilettantistica Velasca","ASST Centro Specialistico Ortopedico Traumatologico Gaetano Pini/CTO","AWA S.R.L.","BARMAN MILANO EVENTI SRL","BATCH S.R.L.","BE BARMAN EVENTI MILANO S.R.L.","BEIT EVENTS S.R.L.","BERBERE' S.R.L.","BEREITALIANO S.R.L.","BETTER DAYS S.R.L. IMPRESA CULTURALE E CREATIVA","BIBE S.R.L.","BIG MAMMA TRATTORIE SRL","BL DATA S.N.C. DI L. DAINOTTO & B. DE MEO","BM clienti esterni NP","Boti Srl","BRE SRL","BREMA GROUP S.P.A.","BULGHERONI CLAUDIO S.R.L.","BZ SRL","C'ERA UNA VOLTA NONNA MARIA DI GRIMOLDI LUCA","CAFFE' MEGARIDE DI DE LUCA BOSSO MASSIMO","CAMPARINO SRL","CARRO SOCIAL CLUB SRL","Cartabianca S.r.l.","CASA DI CURA IGEA SPA","CASA DI CURA PRIVATA DEL POLICLINICO SPA","CASUAL FOOD S.R.L.","CICININ SRL","CIRCOLO ARCI NOVA ARCORE BLOB AMMINISTRAZIONE","CLINICA POLISPECIALISTICA SAN CARLO S.R.L.","CMB MUSIC SRL","CMC SRL","Compagnia dei Caraibi SPA","COOPERATIVA SOCIALE CIRCOLO FAMIGLIARE DI UNITA' PROLETARIA","COPPELLE MILANO S.R.L.","CROCCA S.R.L.","DAAB S.N.C. DI ALAMPI FABIO E DELL'ORTO LUCA","Davide Campari - MILANO N.V","DM SUMMER IPA S.R.L.","DM SUMMER MOROSINI","DOLCE & GABBANA S.R.L.","DOPPIO MALTO S.P.A.","DRINK & TASTE S.R.L.","DUEPUNTOZERO S.R.L.","EL PRESTIN DEL CANTUN SNC DI MANZONI Giovanni Battista & C.","ENRICO BARTOLINI S.R.L. UNIPERSONALE","FARM 65 S.R.L.","Favre Marcello","Ferraro Bruno Salvatore","FISIO 360 SRL","FLORESTA SOCIETA' AGRICOLA S.R.L.","Fondazione IRCCS \"Ca' - Granda Ospedale Maggiore Policlinico\"","FONDAZIONE ISTITUTO FIRC DI ONCOLOGIA MOLECOLARE IN BREVE IFOM","FONDAZIONE OPERA SAN CAMILLO","Food as Therapy S.r.l","FOODFELLAS SRL","FORNO CANTONI SRL","FRED MILANO S.R.L.S.","FRIOSTAR S.R.L.","FUTURO S.R.L. Unipersonale","GESTO SOCIETA' BENEFIT S.R.L.","GREENERY SRL","GREM SRL","Hellodi Srl","HOCUS POCUS S.R.L.","HQ SRL","I GENOVASCHI SRL","ICE GROUP - SOCIETA' A RESPONSABILITA' LIMITATA","Idea Ristorazione Srl","IDEFIX S.R.L.","IDEM Srls","IL GRANELLO DON LUIGI MONZA COOPERATIVA SOCIALE","IL PORTICHETTO S.A.S. DI SACCO ELENA E C.","ISLA SRL","IT RESTAURANT MILAN S.R.L.","ITER SRL","JASMINE S.A.S. DI ALI KHALED & C.","JOJOLLY S.R.L. SOCIETA' BENEFIT","KAMPAAY S.R.L.","KETCHUP S.R.L.","KING CUP ITALIA S.R.L.","LA ROCCA S.R.L.","LOM DOPOLAVORO S.R.L.","LRG S.R.L","M.POINT DI MONACO MARIA MARILU'","MA.NI FOOD S.A.S. DI MASSIMO BARONI, NICOLA DELFINO & C.","MADE SRL","Madeleine Snc","MAGMA SRL","MAIO SRL","MAMA SRL - Mom caf\u00e8","MANIFA S.R.L.","MAPA SRL","MARCHESI 1824 S.R.L.","MARCO LAWANDEY EL KOMOS VIOLETTE","MARE FOOD LAB S.R.L.","Marina srls","MARTAS S.B. S.R.L.","MARTINI SPA","MC GROUP SRL SOCIET\u00c1 BENEFIT","Mec Service srl","MGL CATERING S.R.L.","MICHELI ASSOCIATI SRL","MICRO ONDA GROUP S.A.S. DI GRASSINI DARIO EUGENIO & C.","MIGLIAVACCA HVK 2 SRL","MILANO CORTINA 2026","MILLENNIUM SRLS","MISCUSI BOCCONI","MISCUSI CADORNA","MISCUSI CINQUE GIORNATE","MISCUSI COLONNE","MISCUSI MINNITI ISOLA","MISCUSI S.R.L.","MISCUSI STAZIONE CENTRALE","miscusi uffici","Mistertea Srls Unipersonale","MOTO&ROLA S.R.L.","MOTOWN S.R.L.","MR ICE S.R.L.","MR. POT STILL SRL","MSGM SRL","MWF SRL","MY WAY S.N.C. DI PALAZZO RICCARDO & C.","NATO RAPID DEPLOYABLE CORPS - ITALY","NEOS S.P.A.","NEW TEAM S.R.L.","NEWBLEND S.R.L.","NH ITALIA S.P.A.","NO.KIA S.R.L.","NOLOOP SRL","non usare pi\u00f9-ROYAL NOLEGGIO SAS DI SHEHADEH AYED E C.","Nuovo Rinascimento Impresa Sociale","OFFICINA DEL GUSTO SRL","OROBIA 26 S.R.L.","P. & B. LINE S.a.s.","P.IVA CESSATA - NON USARE MAI PIU - MONTORFANO DANIELE","PABLO BROS S.R.L.","PERINI MICHELE","PESCATORUM S.R.L. SB\" IN LIQUIDAZIONE","PING-LING SAS DI LI SUIPING","PIZZIUM S.P.A.","POLICLINICO SAN DONATO S.P.A.","Raggr.Ordini e scollegare e poi fatturare una fattura separata a we are you srl","RHA VISION S.R.L.","RIPA S.R.L.","RIZZA CHRISTIAN","RL FASHIONS OF EUROPE S.R.L.","ROYAL NOLEGGIO SRL","S & P SRL","SAN S.R.L. - Ruiz","Sanctuary e Voodoo bar Milano Srl","SBIELLATI S.R.L.","SERENA BARBIERI SRL","Seven Srl","SG4SG SRL","SISTEMA HOTELS EXPO 2015 SRL","SISTERS S.R.L.","SMASH COCKTAIL SAS DI DANIELE MONTORFANO & C.","SODEXO ITALIA S.P.A.","SOGNI S.R.L.","Spice di M. V. Sukyas","STAR GESTIONI S.R.L.","STILL COMPANY SRL","SUCCULENTA SRL","TASTE & VENUE CONSULTING SRL","THIRSTY SRL","TRAPIZZINO S.R.L.","TRIPSTILLERY MILANO S.R.L.","TRIPSTILLERY NAVIGLI S.R.L.","TUFRE' S.R.L.","Turne Eventi Srl","TURNE' SRL","TUTTI PER UNO S.R.L.","UNCLE S.R.L.","UNSEENBAR DI MILO OCCHIPINTI","VAPORE S.R.L.","VARGROS S.R.L.","VERTIGO SRL","VESPER S.R.L.","VI.CO.OK SRL","VIBE & FLAVOR S.R.L.","WAVE LOUNGE BAR DI SANALITRO SAMUEL","We Are You srl","WHITE RABBIT SRLS","WINELIVERY SRL","YOU SRL","ZINC DI BENOLLI ANDREA"].map(function(s){return s.trim().toUpperCase();}));
-
 var PRODUCT_ABBREVIATIONS={'Ghiaccio - Clear 6,5 x 6,5':'Clear 6,5','Ghiaccio Lastra -':'Lastra20X20','Ghiaccio - Ice Ball - Hoshizaki':'IceBall','Ghiaccio Pil\u00e8':'P','Ghiaccio - Long Clear 4x14':'Long 4x14','Ghiaccio Hoshizaki':'H','Short Stick 4x4x6':'Short St','SUPER ICEBALL':'sup Iceball','Ghiaccio - Huge Clear 3,5x15':'Huge 3,5x15','Ghiaccio - Sfera BIG 5,5 cm':'Sfera BIG','GHIACCIO SECCO - 16mm':'G.Secco-16mm','GHIACCIO SECCO - 3mm':'G.Secco-3mm','Ghiaccio Gourmet':'G','Ghiaccio - Stick12 - 4x12':'Stick 4x12','Ghiaccio Small Hoshizaki':'Small H','Ghiaccio Super G.':'Sup-G.','Ghiaccio Super Pil\u00e8':'Sup-Pil\u00e8','Ghiaccio - Slim Clear 3,5x10':'Slim 3,5x10','ColdBox':'Poli','Ghiaccio - Clear 5x5':'Clear 5x5','Inserimento Ordine Manuale':'Ins.Ord.Man.','Ghiaccio - Stick ice 4x4x11':'Stick 4x11','Ghiaccio - Stick Tall 3,5x12':'Stick Tall 3,5x12','Ghiaccio - Chunk Clear 7x5x5':'Chunk7x5','Ghiaccio BIG Gourmet':'BigG','Ghiaccio - Stick ice 4x4x10':'Stick 4x10','Ghiaccio Super Tube':'Tube Super','Ghiaccio Tube Ice':'Tube','servizio furgone refrigerato':'Serv.Consegna','Ghiaccio - Clear 5x10':'5x10','Ghiaccio - cubi 5x5x5 - 80pz':'Cubotti','servizio di consegna':'Cons','Ghiaccio - ice bullion - 40pz':'Ling','Cubo Forato 5cm - 80pz':'Forato','Ghiaccio - kilo-pack 1,5':'1,5pack','Servizio Noleggio Congelatore/gg':'Nol.Congel.','Servizio Trasporto Congelatore':'Trasp.Congel.','campagna marketing':'Camp.Mkt','Coldbox - sacchetti alimentari':'Sacch.Alim.','Cucchiani immersione':'Cucch.Imm.'};
-
 var PRODUCT_STEPS={'Ghiaccio - Clear 6,5 x 6,5':64,'Ghiaccio Lastra -':1,'Ghiaccio - Ice Ball - Hoshizaki':1,'Ghiaccio Pil\u00e8':10,'Ghiaccio - Long Clear 4x14':66,'Ghiaccio Hoshizaki':10,'Short Stick 4x4x6':120,'SUPER ICEBALL':1,'Ghiaccio - Huge Clear 3,5x15':60,'Ghiaccio - Sfera BIG 5,5 cm':96,'GHIACCIO SECCO - 16mm':5,'GHIACCIO SECCO - 3mm':5,'Ghiaccio Gourmet':10,'Ghiaccio - Stick12 - 4x12':72,'Ghiaccio Small Hoshizaki':10,'Ghiaccio Super G.':10,'Ghiaccio Super Pil\u00e8':10,'Ghiaccio - Slim Clear 3,5x10':114,'ColdBox':1,'Ghiaccio - Clear 5x5':125,'Ghiaccio - Stick ice 4x4x11':86,'Ghiaccio - Stick Tall 3,5x12':98,'Ghiaccio - Chunk Clear 7x5x5':93,'Ghiaccio BIG Gourmet':10,'Ghiaccio - Stick ice 4x4x10':150,'Ghiaccio Super Tube':10,'Ghiaccio Tube Ice':10,'Ghiaccio - Clear 5x10':10,'Ghiaccio - cubi 5x5x5 - 80pz':1,'Ghiaccio - ice bullion - 40pz':1,'Cubo Forato 5cm - 80pz':1,'Ghiaccio - kilo-pack 1,5':1};
-
 var POLIBOX_PRODUCTS=new Set(['ColdBox']);
 var SERVICE_PRODUCTS=new Set(['servizio di consegna','servizio furgone refrigerato','Inserimento Ordine Manuale','campagna marketing','Servizio Noleggio Congelatore/gg','Servizio Trasporto Congelatore','Coldbox - sacchetti alimentari','Cucchiani immersione']);
-
-var ZONES=[
-  {name:'DUOMO',color:'#555555',polygon:[[9.1884713,45.464915],[9.1883533,45.4638088],[9.1885698,45.463684],[9.1878168,45.4630413],[9.1870443,45.4623791],[9.1873877,45.4621157],[9.1895176,45.4617816],[9.1906171,45.4617244],[9.1935088,45.463723],[9.194131,45.4638886],[9.1936375,45.4644906],[9.1929723,45.4647464],[9.188552,45.4647615],[9.1884713,45.464915]]},
-  {name:'DUOMO-CORDUSIO',color:'#666666',polygon:[[9.1862187,45.4651156],[9.1883533,45.4638088],[9.1884802,45.4648347],[9.1882302,45.4656042],[9.1870731,45.46558],[9.1865367,45.4650684],[9.1862187,45.4651156]]},
-  {name:'CENTRO SUD-OVEST',color:'#A52714',polygon:[[9.178035,45.4639994],[9.1777766,45.4599816],[9.1839135,45.4598161],[9.1885698,45.463684],[9.1861236,45.4651738],[9.178035,45.4639994]]},
-  {name:'CENTRO-NORD-OVEST',color:'#817717',polygon:[[9.1861236,45.4651738],[9.1865367,45.4650684],[9.1870731,45.46558],[9.187041,45.4659036],[9.1861504,45.4661143],[9.177957,45.4670832],[9.1765482,45.4658584],[9.178035,45.4639994],[9.1861236,45.4651738]]},
-  {name:'CENTRO-NORD',color:'#006064',polygon:[[9.1870731,45.46558],[9.1881003,45.4655783],[9.189377,45.4669364],[9.1900583,45.4674556],[9.1913807,45.4686172],[9.1950715,45.4721234],[9.1949507,45.4722163],[9.1922048,45.4726208],[9.1920331,45.4723801],[9.1894152,45.4726509],[9.1835788,45.4716879],[9.1838792,45.4702734],[9.1836646,45.4681968],[9.1823343,45.467324],[9.1805748,45.4667822],[9.1861504,45.4661143],[9.187041,45.4659036],[9.1870731,45.46558]]},
-  {name:'CENTRO-NORD-EST',color:'#AFB42B',polygon:[[9.1881003,45.4655783],[9.1928757,45.4667061],[9.1938413,45.4669393],[9.1937876,45.4672102],[9.1978968,45.4695276],[9.1950715,45.4721234],[9.189377,45.4669364],[9.1881003,45.4655783]]},
-  {name:'CENTRO-EST',color:'#2E7D32',polygon:[[9.1978968,45.4695276],[9.1937876,45.4672102],[9.1938413,45.4669393],[9.1882302,45.4656042],[9.188552,45.4647615],[9.1929723,45.4647464],[9.1936375,45.4644906],[9.194131,45.4638886],[9.1946675,45.4634221],[9.195397,45.4623234],[9.1971995,45.4615559],[9.1999288,45.4649931],[9.2007871,45.4668592],[9.1978968,45.4695276]]},
-  {name:'CENTRO-SUD-EST',color:'#BCAAA4',polygon:[[9.194131,45.4638886],[9.1935088,45.463723],[9.1912772,45.4622181],[9.1896249,45.460984],[9.1920282,45.4588618],[9.1940065,45.458672],[9.1958948,45.4601169],[9.1970707,45.4615408],[9.195397,45.4623234],[9.194131,45.4638886]]},
-  {name:'CENTRO-SUD',color:'#E65100',polygon:[[9.1920282,45.4588618],[9.1896249,45.460984],[9.1895176,45.4617816],[9.186814,45.4622331],[9.1839135,45.4598161],[9.1920282,45.4588618]]},
-  {name:'SUD',color:'#880E4F',polygon:[[9.1156908,45.4432578],[9.1767164,45.4225382],[9.1862157,45.4182907],[9.1840978,45.4502429],[9.1836408,45.4598457],[9.1810079,45.4600567],[9.1673608,45.4598761],[9.1156908,45.4432578]]},
-  {name:'SUD-EST',color:'#CE93D8',polygon:[[9.1862157,45.4182907],[9.2670682,45.4441909],[9.2165998,45.456113],[9.1836408,45.4598457],[9.1862157,45.4182907]]},
-  {name:'SUD-OVEST',color:'#F57C00',polygon:[[9.077699,45.4287725],[9.0782998,45.4291942],[9.1156908,45.4432578],[9.1673608,45.4598761],[9.1777775,45.4600864],[9.178035,45.4639994],[9.1707394,45.4655043],[9.0842221,45.4459371],[9.077699,45.4287725]]},
-  {name:'OVEST',color:'#F9A825',polygon:[[9.0842221,45.4459371],[9.1707394,45.4655043],[9.178035,45.4639994],[9.174231,45.468709],[9.1552624,45.473103],[9.1501126,45.4732835],[9.1503701,45.4808065],[9.1514859,45.4819499],[9.0576729,45.4662411],[9.0774998,45.4291484],[9.0842221,45.4459371]]},
-  {name:'NORD-OVEST',color:'#7B1FA2',polygon:[[9.0576729,45.4662411],[9.1503701,45.4808065],[9.1501126,45.4732835],[9.1697171,45.4693181],[9.1690305,45.4731702],[9.1669706,45.4767814],[9.1698888,45.478948],[9.1736654,45.4805729],[9.15813,45.4938712],[9.1235402,45.5309814],[9.0900663,45.5242468],[9.0308431,45.5148652],[9.0576729,45.4662411]]},
-  {name:'NORD',color:'#0277BD',polygon:[[9.1734938,45.4803322],[9.1697172,45.4787073],[9.166799,45.4765407],[9.1688589,45.4729295],[9.1695455,45.4694909],[9.1740594,45.4684683],[9.1763262,45.4657288],[9.177957,45.4670832],[9.1805748,45.4667822],[9.1823343,45.467324],[9.1836646,45.4681968],[9.1838792,45.4702734],[9.1835788,45.4716879],[9.1894152,45.4726509],[9.1920331,45.4723801],[9.1952947,45.4780375],[9.2177822,45.4995187],[9.2267944,45.5238781],[9.2116453,45.5280272],[9.1852954,45.5283579],[9.1638807,45.5351821],[9.1405778,45.5256821],[9.1233688,45.5307407],[9.1577439,45.4938634],[9.1734938,45.4803322]]},
-  {name:'NORD-EST',color:'#795548',polygon:[[9.1949507,45.4722163],[9.2034044,45.4767603],[9.2090269,45.4814847],[9.216409,45.4864023],[9.2290255,45.4937598],[9.2456766,45.5120474],[9.2505697,45.5114893],[9.2573503,45.5104668],[9.2624143,45.5182254],[9.2540029,45.5238182],[9.2425874,45.5240587],[9.2269662,45.5241188],[9.217954,45.4997594],[9.2068818,45.4886287],[9.1954664,45.4782782],[9.1922048,45.4726208],[9.1949507,45.4722163]]},
-  {name:'EST',color:'#0F9D58',polygon:[[9.1940065,45.458672],[9.2165998,45.456113],[9.2566629,45.4469312],[9.2634435,45.5030849],[9.2644735,45.5097618],[9.2456766,45.5120474],[9.2290255,45.4937598],[9.217051,45.4868404],[9.2090269,45.4814847],[9.2034044,45.4767603],[9.1949507,45.4722163],[9.2007871,45.4668592],[9.1999288,45.4649931],[9.1958948,45.4601169],[9.1940065,45.458672]]}
-];
-
-var ZONE_COLORS={};ZONES.forEach(function(z){ZONE_COLORS[z.name]=z.color;});
-ZONE_COLORS['RITIRO IN DITTA']='#38bdf8';
-
+var ZONES=[{name:'DUOMO',color:'#555555',polygon:[[9.1884713,45.464915],[9.1883533,45.4638088],[9.1885698,45.463684],[9.1878168,45.4630413],[9.1870443,45.4623791],[9.1873877,45.4621157],[9.1895176,45.4617816],[9.1906171,45.4617244],[9.1935088,45.463723],[9.194131,45.4638886],[9.1936375,45.4644906],[9.1929723,45.4647464],[9.188552,45.4647615],[9.1884713,45.464915]]},{name:'DUOMO-CORDUSIO',color:'#666666',polygon:[[9.1862187,45.4651156],[9.1883533,45.4638088],[9.1884802,45.4648347],[9.1882302,45.4656042],[9.1870731,45.46558],[9.1865367,45.4650684],[9.1862187,45.4651156]]},{name:'CENTRO SUD-OVEST',color:'#A52714',polygon:[[9.178035,45.4639994],[9.1777766,45.4599816],[9.1839135,45.4598161],[9.1885698,45.463684],[9.1861236,45.4651738],[9.178035,45.4639994]]},{name:'CENTRO-NORD-OVEST',color:'#817717',polygon:[[9.1861236,45.4651738],[9.1865367,45.4650684],[9.1870731,45.46558],[9.187041,45.4659036],[9.1861504,45.4661143],[9.177957,45.4670832],[9.1765482,45.4658584],[9.178035,45.4639994],[9.1861236,45.4651738]]},{name:'CENTRO-NORD',color:'#006064',polygon:[[9.1870731,45.46558],[9.1881003,45.4655783],[9.189377,45.4669364],[9.1900583,45.4674556],[9.1913807,45.4686172],[9.1950715,45.4721234],[9.1949507,45.4722163],[9.1922048,45.4726208],[9.1920331,45.4723801],[9.1894152,45.4726509],[9.1835788,45.4716879],[9.1838792,45.4702734],[9.1836646,45.4681968],[9.1823343,45.467324],[9.1805748,45.4667822],[9.1861504,45.4661143],[9.187041,45.4659036],[9.1870731,45.46558]]},{name:'CENTRO-NORD-EST',color:'#AFB42B',polygon:[[9.1881003,45.4655783],[9.1928757,45.4667061],[9.1938413,45.4669393],[9.1937876,45.4672102],[9.1978968,45.4695276],[9.1950715,45.4721234],[9.189377,45.4669364],[9.1881003,45.4655783]]},{name:'CENTRO-EST',color:'#2E7D32',polygon:[[9.1978968,45.4695276],[9.1937876,45.4672102],[9.1938413,45.4669393],[9.1882302,45.4656042],[9.188552,45.4647615],[9.1929723,45.4647464],[9.1936375,45.4644906],[9.194131,45.4638886],[9.1946675,45.4634221],[9.195397,45.4623234],[9.1971995,45.4615559],[9.1999288,45.4649931],[9.2007871,45.4668592],[9.1978968,45.4695276]]},{name:'CENTRO-SUD-EST',color:'#BCAAA4',polygon:[[9.194131,45.4638886],[9.1935088,45.463723],[9.1912772,45.4622181],[9.1896249,45.460984],[9.1920282,45.4588618],[9.1940065,45.458672],[9.1958948,45.4601169],[9.1970707,45.4615408],[9.195397,45.4623234],[9.194131,45.4638886]]},{name:'CENTRO-SUD',color:'#E65100',polygon:[[9.1920282,45.4588618],[9.1896249,45.460984],[9.1895176,45.4617816],[9.186814,45.4622331],[9.1839135,45.4598161],[9.1920282,45.4588618]]},{name:'SUD',color:'#880E4F',polygon:[[9.1156908,45.4432578],[9.1767164,45.4225382],[9.1862157,45.4182907],[9.1840978,45.4502429],[9.1836408,45.4598457],[9.1810079,45.4600567],[9.1673608,45.4598761],[9.1156908,45.4432578]]},{name:'SUD-EST',color:'#CE93D8',polygon:[[9.1862157,45.4182907],[9.2670682,45.4441909],[9.2165998,45.456113],[9.1836408,45.4598457],[9.1862157,45.4182907]]},{name:'SUD-OVEST',color:'#F57C00',polygon:[[9.077699,45.4287725],[9.0782998,45.4291942],[9.1156908,45.4432578],[9.1673608,45.4598761],[9.1777775,45.4600864],[9.178035,45.4639994],[9.1707394,45.4655043],[9.0842221,45.4459371],[9.077699,45.4287725]]},{name:'OVEST',color:'#F9A825',polygon:[[9.0842221,45.4459371],[9.1707394,45.4655043],[9.178035,45.4639994],[9.174231,45.468709],[9.1552624,45.473103],[9.1501126,45.4732835],[9.1503701,45.4808065],[9.1514859,45.4819499],[9.0576729,45.4662411],[9.0774998,45.4291484],[9.0842221,45.4459371]]},{name:'NORD-OVEST',color:'#7B1FA2',polygon:[[9.0576729,45.4662411],[9.1503701,45.4808065],[9.1501126,45.4732835],[9.1697171,45.4693181],[9.1690305,45.4731702],[9.1669706,45.4767814],[9.1698888,45.478948],[9.1736654,45.4805729],[9.15813,45.4938712],[9.1235402,45.5309814],[9.0900663,45.5242468],[9.0308431,45.5148652],[9.0576729,45.4662411]]},{name:'NORD',color:'#0277BD',polygon:[[9.1734938,45.4803322],[9.1697172,45.4787073],[9.166799,45.4765407],[9.1688589,45.4729295],[9.1695455,45.4694909],[9.1740594,45.4684683],[9.1763262,45.4657288],[9.177957,45.4670832],[9.1805748,45.4667822],[9.1823343,45.467324],[9.1836646,45.4681968],[9.1838792,45.4702734],[9.1835788,45.4716879],[9.1894152,45.4726509],[9.1920331,45.4723801],[9.1952947,45.4780375],[9.2177822,45.4995187],[9.2267944,45.5238781],[9.2116453,45.5280272],[9.1852954,45.5283579],[9.1638807,45.5351821],[9.1405778,45.5256821],[9.1233688,45.5307407],[9.1577439,45.4938634],[9.1734938,45.4803322]]},{name:'NORD-EST',color:'#795548',polygon:[[9.1949507,45.4722163],[9.2034044,45.4767603],[9.2090269,45.4814847],[9.216409,45.4864023],[9.2290255,45.4937598],[9.2456766,45.5120474],[9.2505697,45.5114893],[9.2573503,45.5104668],[9.2624143,45.5182254],[9.2540029,45.5238182],[9.2425874,45.5240587],[9.2269662,45.5241188],[9.217954,45.4997594],[9.2068818,45.4886287],[9.1954664,45.4782782],[9.1922048,45.4726208],[9.1949507,45.4722163]]},{name:'EST',color:'#0F9D58',polygon:[[9.1940065,45.458672],[9.2165998,45.456113],[9.2566629,45.4469312],[9.2634435,45.5030849],[9.2644735,45.5097618],[9.2456766,45.5120474],[9.2290255,45.4937598],[9.217051,45.4868404],[9.2090269,45.4814847],[9.2034044,45.4767603],[9.1949507,45.4722163],[9.2007871,45.4668592],[9.1999288,45.4649931],[9.1958948,45.4601169],[9.1940065,45.458672]]}];
+var ZONE_COLORS={};ZONES.forEach(function(z){ZONE_COLORS[z.name]=z.color;});ZONE_COLORS['RITIRO IN DITTA']='#38bdf8';
 var SEDE_ZONE='RITIRO IN DITTA';
 function isSedeAddress(a){a=a.toLowerCase();return/via\s+teramo\s+9/i.test(a)||/via\s+(eugenio\s+)?montale\s+(27|29)/i.test(a);}
 
 // ============================================================
-// STATE
-// ============================================================
-var orders=[],geocodeCache={};
-var mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[];
+var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[];
 try{var c=localStorage.getItem('icbk_geocode_cache');if(c)geocodeCache=JSON.parse(c);}catch(e){}
 
 // ============================================================
 // PARSING
 // ============================================================
-function parseCSV(text){
-  var lines=[],cur='',inQ=false;
-  for(var i=0;i<text.length;i++){var ch=text[i];if(ch==='"')inQ=!inQ;if((ch==='\n'||ch==='\r')&&!inQ){if(cur.trim())lines.push(cur);cur='';if(ch==='\r'&&text[i+1]==='\n')i++;}else cur+=ch;}
-  if(cur.trim())lines.push(cur);
-  var results=[];
-  for(var idx=1;idx<lines.length;idx++){
-    var f=splitCSV(lines[idx],';');if(f.length<9)continue;
-    var products=[];
-    try{products=JSON.parse(f[2].replace(/""/g,'"'));}catch(e1){try{products=JSON.parse(f[2]);}catch(e2){try{products=JSON.parse(f[2].replace(/^"|"$/g,'').replace(/""/g,'"'));}catch(e3){}}}
-    var dp=[];
-    for(var pi=0;pi<products.length;pi++){var p=products[pi];if(SERVICE_PRODUCTS.has(p.name))continue;var isPoli=POLIBOX_PRODUCTS.has(p.name);var step=PRODUCT_STEPS[p.name]||1;dp.push({name:p.name,quantity:p.quantity,abbr:PRODUCT_ABBREVIATIONS[p.name]||p.name,step:step,colli:Math.ceil(p.quantity/step),isPoli:isPoli});}
-    var customer=f[1].trim(),address=(f[4]||'').trim(),forcedZone=isSedeAddress(address)?SEDE_ZONE:null;
-    results.push({id:f[0],customer:customer,products:dp,date:f[3],address:address,contact:(f[5]||'').trim(),instructions:(f[6]||'').trim(),note:(f[7]||'').trim(),total:parseFloat(f[8])||0,isNP:NP_CLIENTS.has(customer.toUpperCase()),zone:forcedZone,lat:null,lng:null,isSede:!!forcedZone});
-  }
-  return results;
-}
+function parseCSV(text){var lines=[],cur='',inQ=false;for(var i=0;i<text.length;i++){var ch=text[i];if(ch==='"')inQ=!inQ;if((ch==='\n'||ch==='\r')&&!inQ){if(cur.trim())lines.push(cur);cur='';if(ch==='\r'&&text[i+1]==='\n')i++;}else cur+=ch;}if(cur.trim())lines.push(cur);var results=[];for(var idx=1;idx<lines.length;idx++){var f=splitCSV(lines[idx],';');if(f.length<9)continue;var products=[];try{products=JSON.parse(f[2].replace(/""/g,'"'));}catch(e1){try{products=JSON.parse(f[2]);}catch(e2){try{products=JSON.parse(f[2].replace(/^"|"$/g,'').replace(/""/g,'"'));}catch(e3){}}}var dp=[];for(var pi=0;pi<products.length;pi++){var p=products[pi];if(SERVICE_PRODUCTS.has(p.name))continue;dp.push({name:p.name,quantity:p.quantity,abbr:PRODUCT_ABBREVIATIONS[p.name]||p.name,step:PRODUCT_STEPS[p.name]||1,colli:Math.ceil(p.quantity/(PRODUCT_STEPS[p.name]||1)),isPoli:POLIBOX_PRODUCTS.has(p.name)});}var customer=f[1].trim(),address=(f[4]||'').trim(),forcedZone=isSedeAddress(address)?SEDE_ZONE:null;results.push({id:f[0],customer:customer,products:dp,date:f[3],address:address,contact:(f[5]||'').trim(),instructions:(f[6]||'').trim(),note:(f[7]||'').trim(),total:parseFloat(f[8])||0,isNP:NP_CLIENTS.has(customer.toUpperCase()),zone:forcedZone,lat:null,lng:null,isSede:!!forcedZone});}return results;}
 function splitCSV(line,sep){var f=[],cur='',inQ=false;for(var i=0;i<line.length;i++){var ch=line[i];if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(ch===sep&&!inQ){f.push(cur);cur='';}else cur+=ch;}f.push(cur);return f;}
-
-// ============================================================
-// CARGO
-// ============================================================
-function calcCargo(arr){
-  var pt={},tc=0,tk=0,tp=0;
-  arr.forEach(function(o){o.products.forEach(function(p){if(!pt[p.abbr])pt[p.abbr]={qty:0,colli:0,isPoli:p.isPoli};pt[p.abbr].qty+=p.quantity;pt[p.abbr].colli+=p.colli;if(p.isPoli)tp+=p.quantity;else{tc+=p.colli;tk+=p.colli*10;}});});
-  return{productTotals:pt,totalColli:tc,totalKg:tk,totalPoli:tp};
-}
+function calcCargo(arr){var pt={},tc=0,tk=0,tp=0;arr.forEach(function(o){o.products.forEach(function(p){if(!pt[p.abbr])pt[p.abbr]={qty:0,colli:0,isPoli:p.isPoli};pt[p.abbr].qty+=p.quantity;pt[p.abbr].colli+=p.colli;if(p.isPoli)tp+=p.quantity;else{tc+=p.colli;tk+=p.colli*10;}});});return{productTotals:pt,totalColli:tc,totalKg:tk,totalPoli:tp};}
 
 // ============================================================
 // GEOCODING
 // ============================================================
+function cleanAddress(address){return address.replace(/\(MI\)/gi,'Milano').replace(/\(Milano\)/gi,'Milano').replace(/, undefined/gi,'').replace(/undefined/gi,'').replace(/Metropolitan City of Milan, Italy/gi,'').trim().replace(/,\s*,/g,',').replace(/,\s*$/,'');}
 function geocodeNominatim(address){
-  var cl=address.replace(/\(MI\)/gi,'Milano').replace(/\(Milano\)/gi,'Milano').replace(/, undefined/gi,'').replace(/undefined/gi,'').replace(/Metropolitan City of Milan, Italy/gi,'').trim().replace(/,\s*,/g,',').replace(/,\s*$/,'');
+  var cl=cleanAddress(address);
   if(!/milano|milan/i.test(cl)&&!/novegro|peschiera|melegnano|segrate|opera/i.test(cl))cl+=', Milano, Italy';
   else if(!/italy|italia/i.test(cl))cl+=', Italy';
   return fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(cl)+'&limit=1&countrycodes=it',{headers:{'User-Agent':'ICBK/1.0'}}).then(function(r){return r.json();}).then(function(d){return d&&d.length>0?{lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)}:null;}).catch(function(){return null;});
 }
 function geocodeGoogle(address){
-  var cl=address.replace(/\(MI\)/gi,'Milano').replace(/\(Milano\)/gi,'Milano').replace(/, undefined/gi,'').replace(/undefined/gi,'').replace(/Metropolitan City of Milan, Italy/gi,'').trim();
-  if(!/milano|milan/i.test(cl))cl+=', Milano, Italy';
+  var cl=cleanAddress(address);if(!/milano|milan/i.test(cl))cl+=', Milano, Italy';
   return fetch('/api/geocode?address='+encodeURIComponent(cl)).then(function(r){return r.json();}).then(function(d){return d&&d.lat?d:null;}).catch(function(){return null;});
 }
-function geocodeAddress(address){
-  var ck=address.toLowerCase().trim();
-  if(geocodeCache[ck])return Promise.resolve(geocodeCache[ck]);
-  return geocodeNominatim(address).then(function(r){
-    if(r){geocodeCache[ck]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}return r;}
-    return geocodeGoogle(address).then(function(g){if(g){geocodeCache[ck]=g;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}return g;}return null;});
-  });
+function geocodeSearchNominatim(query){
+  return fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(query)+'&limit=5&countrycodes=it',{headers:{'User-Agent':'ICBK/1.0'}}).then(function(r){return r.json();}).catch(function(){return[];});
 }
 function pointInPolygon(lng,lat,poly){var ins=false;for(var i=0,j=poly.length-1;i<poly.length;j=i++){var xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];if(((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/(yj-yi)+xi))ins=!ins;}return ins;}
 function findZone(lng,lat){for(var i=0;i<ZONES.length;i++){if(pointInPolygon(lng,lat,ZONES[i].polygon))return ZONES[i].name;}return null;}
 
 // ============================================================
-// DOM
+// DOM HELPERS
 // ============================================================
 function el(tag,attrs,children){var e=document.createElement(tag);if(attrs)Object.keys(attrs).forEach(function(k){if(k==='className')e.className=attrs[k];else if(k==='textContent')e.textContent=attrs[k];else if(k.indexOf('on')===0)e.addEventListener(k.slice(2).toLowerCase(),attrs[k]);else if(k==='style'&&typeof attrs[k]==='object')Object.assign(e.style,attrs[k]);else e.setAttribute(k,attrs[k]);});if(children){if(typeof children==='string')e.textContent=children;else if(Array.isArray(children))children.forEach(function(c){if(c)e.appendChild(c);});}return e;}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3000);}
 function escTxt(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
-function formatProductsDOM(products){
-  var frag=document.createDocumentFragment();
-  products.forEach(function(p,i){
-    if(i>0)frag.appendChild(el('span',{className:'product-plus'},'+'));
-    var span=el('span',{className:'product-item'});
-    span.appendChild(el('span',{className:'product-bracket'},'['));
-    span.appendChild(document.createTextNode(p.quantity+' x '+p.abbr));
-    span.appendChild(el('span',{className:'product-bracket'},']'));
-    frag.appendChild(span);
-  });
-  return frag;
-}
+function formatProductsDOM(products){var frag=document.createDocumentFragment();products.forEach(function(p,i){if(i>0)frag.appendChild(el('span',{className:'product-plus'},'+'));var span=el('span',{className:'product-item'});span.appendChild(el('span',{className:'product-bracket'},'['));span.appendChild(document.createTextNode(p.quantity+' x '+p.abbr));span.appendChild(el('span',{className:'product-bracket'},']'));frag.appendChild(span);});return frag;}
 
 // ============================================================
-// RENDER ZONES (reusable for any container)
+// RESOLVE UNFOUND ADDRESSES
+// ============================================================
+function showResolvePanel(unfoundOrders){
+  if(unfoundOrders.length===0){finishResolve();return;}
+  var overlay=document.getElementById('resolveOverlay');
+  var list=document.getElementById('resolveList');
+  document.getElementById('resolveCount').textContent=unfoundOrders.length;
+  while(list.firstChild)list.removeChild(list.firstChild);
+  resolveMaps=[];
+
+  unfoundOrders.forEach(function(order,idx){
+    var item=el('div',{className:'resolve-item','data-order-id':order.id});
+
+    // Left: info + search
+    var info=el('div',{className:'resolve-info'});
+    info.appendChild(el('div',{className:'resolve-customer',textContent:order.customer}));
+    info.appendChild(el('div',{className:'resolve-address',textContent:'Indirizzo originale: '+order.address}));
+    var prodsText=order.products.map(function(p){return'['+p.quantity+'x'+p.abbr+']';}).join(' + ');
+    info.appendChild(el('div',{className:'resolve-products',textContent:prodsText}));
+
+    var searchRow=el('div',{className:'resolve-search'});
+    var searchInput=el('input',{type:'text',placeholder:'Digita indirizzo corretto...',value:cleanAddress(order.address)});
+    var searchBtn=el('button',{className:'btn',textContent:'Cerca',onClick:function(){
+      var query=searchInput.value.trim();
+      if(!query)return;
+      searchBtn.textContent='...';
+      geocodeSearchNominatim(query).then(function(results){
+        searchBtn.textContent='Cerca';
+        resultDiv.textContent='';
+        if(results.length===0){resultDiv.textContent='Nessun risultato. Prova a cliccare sulla mappa.';resultDiv.style.color='var(--red)';return;}
+        results.forEach(function(r){
+          var rBtn=el('button',{className:'btn',style:{fontSize:'11px',margin:'2px'},textContent:r.display_name.substring(0,80),onClick:function(){
+            var lat=parseFloat(r.lat),lng=parseFloat(r.lon);
+            applyResolve(order,item,mapData,lat,lng);
+          }});
+          resultDiv.appendChild(rBtn);
+        });
+      });
+    }});
+    searchRow.appendChild(searchInput);searchRow.appendChild(searchBtn);
+    info.appendChild(searchRow);
+    var resultDiv=el('div',{className:'resolve-result'});
+    info.appendChild(resultDiv);
+    item.appendChild(info);
+
+    // Right: mini map
+    var mapDiv=el('div',{className:'resolve-map'});
+    var mapInner=el('div',{className:'resolve-map-inner',id:'resolveMap'+idx});
+    mapDiv.appendChild(mapInner);
+    mapDiv.appendChild(el('div',{className:'resolve-hint',textContent:'Clicca sulla mappa per posizionare il punto'}));
+    item.appendChild(mapDiv);
+    list.appendChild(item);
+
+    var mapData={map:null,marker:null,idx:idx};
+    resolveMaps.push(mapData);
+
+    // Init map after DOM is ready
+    setTimeout(function(){
+      var m=L.map('resolveMap'+idx,{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(m);
+      // Draw zone polygons on mini map
+      ZONES.forEach(function(z){L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:1.5,fillOpacity:.1}).addTo(m);});
+      mapData.map=m;
+      // Click to place marker
+      m.on('click',function(e){
+        applyResolve(order,item,mapData,e.latlng.lat,e.latlng.lng);
+      });
+    },100+idx*50);
+  });
+
+  overlay.classList.add('active');
+}
+
+function applyResolve(order,itemEl,mapData,lat,lng){
+  order.lat=lat;order.lng=lng;
+  order.zone=findZone(lng,lat);
+  // Cache it
+  geocodeCache[order.address.toLowerCase().trim()]={lat:lat,lng:lng};
+  try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}
+  // Update marker
+  if(mapData.marker&&mapData.map)mapData.map.removeLayer(mapData.marker);
+  mapData.marker=L.marker([lat,lng]).addTo(mapData.map);
+  mapData.map.setView([lat,lng],14);
+  // Mark resolved
+  itemEl.classList.add('resolved');
+  var zone=order.zone||'Fuori zone';
+  var resultEl=itemEl.querySelector('.resolve-result');
+  if(resultEl){resultEl.textContent='Posizionato! Zona: '+zone;resultEl.style.color='var(--green)';}
+  // Update count
+  var remaining=document.querySelectorAll('.resolve-item:not(.resolved)').length;
+  document.getElementById('resolveCount').textContent=remaining;
+}
+
+function finishResolve(){
+  var overlay=document.getElementById('resolveOverlay');
+  overlay.classList.remove('active');
+  // Cleanup resolve maps
+  resolveMaps.forEach(function(md){if(md.map)md.map.remove();});
+  resolveMaps=[];
+  // Show main view
+  document.getElementById('mainView').classList.add('active');
+  renderAll();
+  var assigned=orders.filter(function(o){return o.zone;}).length;
+  showToast(orders.length+' ordini | '+assigned+' assegnati');
+}
+
+document.getElementById('resolveSkipBtn').addEventListener('click',finishResolve);
+
+// ============================================================
+// RENDER ZONES
 // ============================================================
 function renderZones(containerId,filter){
-  filter=(filter||'').toLowerCase();
-  var container=document.getElementById(containerId);
-  while(container.firstChild)container.removeChild(container.firstChild);
+  filter=(filter||'').toLowerCase();var container=document.getElementById(containerId);while(container.firstChild)container.removeChild(container.firstChild);
   var grouped={},unassigned=[];
-  orders.forEach(function(o){
-    if(filter){var s=(o.customer+' '+o.address+' '+o.products.map(function(p){return p.abbr;}).join(' ')).toLowerCase();if(s.indexOf(filter)===-1)return;}
-    if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);
-  });
-
-  // Sorted zone order (RITIRO IN DITTA at end)
+  orders.forEach(function(o){if(filter){var s=(o.customer+' '+o.address+' '+o.products.map(function(p){return p.abbr;}).join(' ')).toLowerCase();if(s.indexOf(filter)===-1)return;}if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);});
   var zoneOrder=ZONES.map(function(z){return z.name;});
-  var sortedZones=Object.keys(grouped).filter(function(z){return z!==SEDE_ZONE;}).sort(function(a,b){return(zoneOrder.indexOf(a)===-1?999:zoneOrder.indexOf(a))-(zoneOrder.indexOf(b)===-1?999:zoneOrder.indexOf(b));});
-
-  sortedZones.forEach(function(zn){container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));});
-
+  Object.keys(grouped).filter(function(z){return z!==SEDE_ZONE;}).sort(function(a,b){return(zoneOrder.indexOf(a)===-1?999:zoneOrder.indexOf(a))-(zoneOrder.indexOf(b)===-1?999:zoneOrder.indexOf(b));}).forEach(function(zn){container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));});
   if(unassigned.length>0)container.appendChild(buildZoneSection('NON ASSEGNATI',unassigned,'#f87171',true,false));
-
-  // RITIRO IN DITTA last
   if(grouped[SEDE_ZONE])container.appendChild(buildZoneSection(SEDE_ZONE,grouped[SEDE_ZONE],ZONE_COLORS[SEDE_ZONE],false,true));
-
   attachDrag();
 }
-
 function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede){
   var cls='zone-section';if(isUnassigned)cls+=' unassigned';if(isSede)cls+=' sede-zone';
-  var section=el('div',{className:cls,'data-zone':zoneName});
-  var cargo=calcCargo(zoneOrders);
-
-  var header=el('div',{className:'zone-table-header',onClick:function(){
-    this.classList.toggle('collapsed');var n=this.nextElementSibling;
-    while(n&&n.classList.contains('zone-table-content')){n.classList.toggle('collapsed');n=n.nextElementSibling;}
-  }});
-  header.appendChild(el('div',{className:'zone-dot',style:{background:color}}));
-  header.appendChild(el('span',{className:'zone-title',textContent:zoneName}));
-  header.appendChild(el('span',{className:'zone-badge',textContent:zoneOrders.length+' consegne'}));
-
-  var cargoDiv=el('div',{className:'zone-cargo'});
-  Object.keys(cargo.productTotals).forEach(function(abbr){cargoDiv.appendChild(el('span',{className:'cargo-item',textContent:cargo.productTotals[abbr].qty+' x '+abbr}));});
-  var wt='Colli: '+cargo.totalColli+' ('+cargo.totalKg+' kg)';
-  if(cargo.totalPoli>0)wt+=' + '+cargo.totalPoli+' Polibox';
-  cargoDiv.appendChild(el('span',{className:'cargo-weight',textContent:wt}));
-  header.appendChild(cargoDiv);
-  header.appendChild(el('span',{className:'chevron',textContent:'\u25BC'}));
-  section.appendChild(header);
-
-  var tw=el('div',{className:'zone-table-content'});
-  var table=el('table',{className:'orders-table'});
-  var thead=el('thead'),hr=el('tr');
+  var section=el('div',{className:cls,'data-zone':zoneName});var cargo=calcCargo(zoneOrders);
+  var header=el('div',{className:'zone-table-header',onClick:function(){this.classList.toggle('collapsed');var n=this.nextElementSibling;while(n&&n.classList.contains('zone-table-content')){n.classList.toggle('collapsed');n=n.nextElementSibling;}}});
+  header.appendChild(el('div',{className:'zone-dot',style:{background:color}}));header.appendChild(el('span',{className:'zone-title',textContent:zoneName}));header.appendChild(el('span',{className:'zone-badge',textContent:zoneOrders.length+' consegne'}));
+  var cargoDiv=el('div',{className:'zone-cargo'});Object.keys(cargo.productTotals).forEach(function(abbr){cargoDiv.appendChild(el('span',{className:'cargo-item',textContent:cargo.productTotals[abbr].qty+' x '+abbr}));});
+  var wt='Colli: '+cargo.totalColli+' ('+cargo.totalKg+' kg)';if(cargo.totalPoli>0)wt+=' + '+cargo.totalPoli+' Polibox';
+  cargoDiv.appendChild(el('span',{className:'cargo-weight',textContent:wt}));header.appendChild(cargoDiv);header.appendChild(el('span',{className:'chevron',textContent:'\u25BC'}));section.appendChild(header);
+  var tw=el('div',{className:'zone-table-content'});var table=el('table',{className:'orders-table'});var thead=el('thead'),hr=el('tr');
   [{t:'#',c:'col-num'},{t:'Cliente',c:'col-customer'},{t:'Prodotti',c:'col-products'},{t:'Indirizzo',c:'col-address'},{t:'Note',c:'col-notes'},{t:'Importo',c:'col-amount'}].forEach(function(h){hr.appendChild(el('th',{className:h.c,textContent:h.t}));});
-  thead.appendChild(hr);table.appendChild(thead);
-
-  var tbody=el('tbody');
+  thead.appendChild(hr);table.appendChild(thead);var tbody=el('tbody');
   zoneOrders.forEach(function(order,idx){
     var tr=el('tr',{draggable:'true','data-order-id':order.id,'data-zone':zoneName});
-    tr.appendChild(el('td',{className:'col-num',textContent:String(idx+1)}));
-    tr.appendChild(el('td',{className:'col-customer',title:order.customer,textContent:order.customer}));
-    var ptd=el('td',{className:'col-products'});
-    if(order.products.length===0)ptd.appendChild(el('span',{style:{color:'var(--red)',fontSize:'11px'}},'(nessun prodotto)'));
-    else ptd.appendChild(formatProductsDOM(order.products));
-    tr.appendChild(ptd);
+    tr.appendChild(el('td',{className:'col-num',textContent:String(idx+1)}));tr.appendChild(el('td',{className:'col-customer',title:order.customer,textContent:order.customer}));
+    var ptd=el('td',{className:'col-products'});if(order.products.length===0)ptd.appendChild(el('span',{style:{color:'var(--red)',fontSize:'11px'}},'(nessun prodotto)'));else ptd.appendChild(formatProductsDOM(order.products));tr.appendChild(ptd);
     tr.appendChild(el('td',{className:'col-address',title:order.address,textContent:order.address}));
-    var ntd=el('td',{className:'col-notes'}),nt=order.instructions||order.note;
-    if(nt)ntd.appendChild(el('span',{className:'notes-text',title:nt,textContent:nt}));
-    tr.appendChild(ntd);
-    var atd=el('td',{className:'col-amount'});
-    if(order.isNP)atd.appendChild(el('span',{className:'np-badge',textContent:'NP'}));
-    else atd.textContent='\u20AC'+order.total.toFixed(2);
-    tr.appendChild(atd);
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);tw.appendChild(table);section.appendChild(tw);
-  return section;
+    var ntd=el('td',{className:'col-notes'}),nt=order.instructions||order.note;if(nt)ntd.appendChild(el('span',{className:'notes-text',title:nt,textContent:nt}));tr.appendChild(ntd);
+    var atd=el('td',{className:'col-amount'});if(order.isNP)atd.appendChild(el('span',{className:'np-badge',textContent:'NP'}));else atd.textContent='\u20AC'+order.total.toFixed(2);tr.appendChild(atd);
+    tbody.appendChild(tr);});
+  table.appendChild(tbody);tw.appendChild(table);section.appendChild(tw);return section;
 }
-
-function updateHeaderStats(){
-  var stats=document.getElementById('headerStats');
-  while(stats.firstChild)stats.removeChild(stats.firstChild);
-  var tc=0,tk=0,tp=0;
-  orders.forEach(function(o){o.products.forEach(function(p){if(p.isPoli)tp+=p.quantity;else{tc+=p.colli;tk+=p.colli*10;}});});
-  var zs={};orders.forEach(function(o){if(o.zone)zs[o.zone]=true;});
-  [[orders.length,'ordini'],[orders.filter(function(o){return o.zone&&o.zone!==SEDE_ZONE;}).length,'consegne'],[orders.filter(function(o){return o.isSede;}).length,'ritiri sede'],[tc,'colli ('+tk+'kg)'],[tp,'polibox'],[orders.filter(function(o){return o.isNP;}).length,'NP']]
-    .forEach(function(item){var s=el('div',{className:'header-stat'});s.appendChild(el('strong',{},String(item[0])));s.appendChild(document.createTextNode(' '+item[1]));stats.appendChild(s);});
-}
+function updateHeaderStats(){var stats=document.getElementById('headerStats');while(stats.firstChild)stats.removeChild(stats.firstChild);var tc=0,tk=0,tp=0;orders.forEach(function(o){o.products.forEach(function(p){if(p.isPoli)tp+=p.quantity;else{tc+=p.colli;tk+=p.colli*10;}});});[[orders.length,'ordini'],[orders.filter(function(o){return o.zone&&o.zone!==SEDE_ZONE;}).length,'consegne'],[orders.filter(function(o){return o.isSede;}).length,'ritiri sede'],[tc,'colli ('+tk+'kg)'],[tp,'polibox'],[orders.filter(function(o){return o.isNP;}).length,'NP']].forEach(function(item){var s=el('div',{className:'header-stat'});s.appendChild(el('strong',{},String(item[0])));s.appendChild(document.createTextNode(' '+item[1]));stats.appendChild(s);});}
 
 // ============================================================
 // MAPS
 // ============================================================
-function buildPopupContent(o){
-  var l='<div class="popup-title">'+escTxt(o.customer)+'</div><div class="popup-products">';
-  o.products.forEach(function(p){l+='<span class="popup-product"><b>['+p.quantity+' x '+escTxt(p.abbr)+']</b></span>';});
-  l+='</div><div class="popup-address">'+escTxt(o.address)+'</div>';
-  if(o.zone)l+='<div class="popup-zone">Zona: '+escTxt(o.zone)+'</div>';
-  l+=o.isNP?'<div class="popup-amount popup-np">NP</div>':'<div class="popup-amount">\u20AC'+o.total.toFixed(2)+'</div>';
-  return l;
-}
+function buildPopupContent(o){var l='<div class="popup-title">'+escTxt(o.customer)+'</div><div>';o.products.forEach(function(p){l+='<span class="popup-product"><b>['+p.quantity+' x '+escTxt(p.abbr)+']</b></span>';});l+='</div><div class="popup-address">'+escTxt(o.address)+'</div>';if(o.zone)l+='<div class="popup-zone">Zona: '+escTxt(o.zone)+'</div>';l+=o.isNP?'<div class="popup-amount popup-np">NP</div>':'<div class="popup-amount">\u20AC'+o.total.toFixed(2)+'</div>';return l;}
 function initMapConsegne(){if(mapConsegne)return;mapConsegne=L.map('mapConsegne',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapConsegne);mapConsegne.on('click',function(){mapConsegne.scrollWheelZoom.enable();});mapConsegne.on('mouseout',function(){mapConsegne.scrollWheelZoom.disable();});}
 function initMapZone(){if(mapZone)return;mapZone=L.map('mapZone',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapZone);mapZone.on('click',function(){mapZone.scrollWheelZoom.enable();});mapZone.on('mouseout',function(){mapZone.scrollWheelZoom.disable();});ZONES.forEach(function(z){L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:2,fillOpacity:.15}).addTo(mapZone).bindTooltip(z.name,{permanent:false,direction:'center'});});}
-function refreshMapMarkers(map,arr){
-  arr.forEach(function(m){map.removeLayer(m);});arr.length=0;
-  orders.forEach(function(o){if(!o.lat||!o.lng)return;
-    var zc=o.zone?(ZONE_COLORS[o.zone]||'#4f8cff'):'#f87171';
-    var m=L.circleMarker([o.lat,o.lng],{radius:7,color:'#fff',weight:2,fillColor:zc,fillOpacity:.9}).addTo(map);
-    m.bindPopup(buildPopupContent(o),{maxWidth:300});arr.push(m);
-  });
-}
+function refreshMapMarkers(map,arr){arr.forEach(function(m){map.removeLayer(m);});arr.length=0;orders.forEach(function(o){if(!o.lat||!o.lng)return;var zc=o.zone?(ZONE_COLORS[o.zone]||'#4f8cff'):'#f87171';var m=L.circleMarker([o.lat,o.lng],{radius:7,color:'#fff',weight:2,fillColor:zc,fillOpacity:.9}).addTo(map);m.bindPopup(buildPopupContent(o),{maxWidth:300});arr.push(m);});}
 
 // ============================================================
 // DRAG & DROP
 // ============================================================
 var draggedOrderId=null;
-function attachDrag(){
-  document.querySelectorAll('.orders-table tr[draggable]').forEach(function(row){
-    row.addEventListener('dragstart',function(e){draggedOrderId=this.getAttribute('data-order-id');this.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
-    row.addEventListener('dragend',function(){this.classList.remove('dragging');document.querySelectorAll('.zone-section').forEach(function(s){s.classList.remove('drag-target');});});
-  });
-  document.querySelectorAll('.zone-section').forEach(function(section){
-    section.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';section.classList.add('drag-target');});
-    section.addEventListener('dragleave',function(){section.classList.remove('drag-target');});
-    section.addEventListener('drop',function(e){
-      e.preventDefault();section.classList.remove('drag-target');
-      var tz=section.getAttribute('data-zone');if(!draggedOrderId||!tz)return;
-      var order=orders.find(function(o){return o.id===draggedOrderId;});
-      if(order){var old=order.zone||'NON ASSEGNATI';order.zone=tz==='NON ASSEGNATI'?null:tz;order.isSede=(order.zone===SEDE_ZONE);renderAll();showToast(order.customer+': '+old+' \u2192 '+tz);}
-      draggedOrderId=null;
-    });
-  });
-}
+function attachDrag(){document.querySelectorAll('.orders-table tr[draggable]').forEach(function(row){row.addEventListener('dragstart',function(e){draggedOrderId=this.getAttribute('data-order-id');this.classList.add('dragging');e.dataTransfer.effectAllowed='move';});row.addEventListener('dragend',function(){this.classList.remove('dragging');document.querySelectorAll('.zone-section').forEach(function(s){s.classList.remove('drag-target');});});});document.querySelectorAll('.zone-section').forEach(function(section){section.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';section.classList.add('drag-target');});section.addEventListener('dragleave',function(){section.classList.remove('drag-target');});section.addEventListener('drop',function(e){e.preventDefault();section.classList.remove('drag-target');var tz=section.getAttribute('data-zone');if(!draggedOrderId||!tz)return;var order=orders.find(function(o){return o.id===draggedOrderId;});if(order){var old=order.zone||'NON ASSEGNATI';order.zone=tz==='NON ASSEGNATI'?null:tz;order.isSede=(order.zone===SEDE_ZONE);renderAll();showToast(order.customer+': '+old+' \u2192 '+tz);}draggedOrderId=null;});});}
+
+function renderAll(){var f=document.getElementById('searchInput').value;renderZones('zonesContainer',f);renderZones('splitLeft',f);renderZones('splitRight',f);updateHeaderStats();if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers);if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers);}
 
 // ============================================================
-// RENDER ALL
+// TABS / TOOLBAR
 // ============================================================
-function renderAll(){
-  var f=document.getElementById('searchInput').value;
-  renderZones('zonesContainer',f);
-  // Split screen: both sides show all zones, user drags between them
-  renderZones('splitLeft',f);
-  renderZones('splitRight',f);
-  updateHeaderStats();
-  if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers);
-  if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers);
-}
-
-// ============================================================
-// TABS
-// ============================================================
-document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){
-  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
-  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
-  this.classList.add('active');document.getElementById('panel-'+this.getAttribute('data-tab')).classList.add('active');
-  if(this.getAttribute('data-tab')==='mapConsegne'){initMapConsegne();setTimeout(function(){mapConsegne.invalidateSize();refreshMapMarkers(mapConsegne,mapConsegneMarkers);},100);}
-  if(this.getAttribute('data-tab')==='mapZone'){initMapZone();setTimeout(function(){mapZone.invalidateSize();refreshMapMarkers(mapZone,mapZoneMarkers);},100);}
-});});
-
-// ============================================================
-// TOOLBAR
-// ============================================================
+document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});this.classList.add('active');document.getElementById('panel-'+this.getAttribute('data-tab')).classList.add('active');if(this.getAttribute('data-tab')==='mapConsegne'){initMapConsegne();setTimeout(function(){mapConsegne.invalidateSize();refreshMapMarkers(mapConsegne,mapConsegneMarkers);},100);}if(this.getAttribute('data-tab')==='mapZone'){initMapZone();setTimeout(function(){mapZone.invalidateSize();refreshMapMarkers(mapZone,mapZoneMarkers);},100);}});});
 document.getElementById('searchInput').addEventListener('input',function(){renderAll();});
 document.getElementById('btnExpand').addEventListener('click',function(){document.querySelectorAll('.zone-table-content.collapsed').forEach(function(e){e.classList.remove('collapsed');});document.querySelectorAll('.zone-table-header.collapsed').forEach(function(e){e.classList.remove('collapsed');});});
 document.getElementById('btnCollapse').addEventListener('click',function(){document.querySelectorAll('.zone-table-content').forEach(function(e){e.classList.add('collapsed');});document.querySelectorAll('.zone-table-header').forEach(function(e){e.classList.add('collapsed');});});
 document.getElementById('btnPrint').addEventListener('click',function(){window.print();});
-document.getElementById('btnExport').addEventListener('click',function(){
-  var csv='Zona;#;Cliente;Prodotti;Colli;Kg;Polibox;Indirizzo;Importo;Note\n';
-  var sorted=orders.slice().sort(function(a,b){return(a.zone||'ZZZ').localeCompare(b.zone||'ZZZ');});
-  var zi={};sorted.forEach(function(o){var z=o.zone||'N/A';if(!zi[z])zi[z]=0;zi[z]++;
-    var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
-    var colli=o.products.reduce(function(s,p){return s+(p.isPoli?0:p.colli);},0);
-    var poli=o.products.reduce(function(s,p){return s+(p.isPoli?p.quantity:0);},0);
-    csv+=z+';'+zi[z]+';'+o.customer+';'+prods+';'+colli+';'+(colli*10)+';'+poli+';'+o.address+';'+(o.isNP?'NP':o.total.toFixed(2))+';'+(o.instructions||o.note)+'\n';
-  });
-  var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
-  var a=el('a',{href:URL.createObjectURL(blob),download:'giri_'+new Date().toISOString().slice(0,10)+'.csv'});
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-});
-document.getElementById('btnReset').addEventListener('click',function(){
-  orders=[];document.getElementById('mainView').classList.remove('active');document.getElementById('uploadArea').style.display='';
-  if(mapConsegne){mapConsegne.remove();mapConsegne=null;}if(mapZone){mapZone.remove();mapZone=null;}mapConsegneMarkers=[];mapZoneMarkers=[];
-});
+document.getElementById('btnExport').addEventListener('click',function(){var csv='Zona;#;Cliente;Prodotti;Colli;Kg;Polibox;Indirizzo;Importo;Note\n';var sorted=orders.slice().sort(function(a,b){return(a.zone||'ZZZ').localeCompare(b.zone||'ZZZ');});var zi={};sorted.forEach(function(o){var z=o.zone||'N/A';if(!zi[z])zi[z]=0;zi[z]++;var prods=o.products.map(function(p){return'['+p.quantity+'x'+p.abbr+']';}).join('+');var colli=o.products.reduce(function(s,p){return s+(p.isPoli?0:p.colli);},0);var poli=o.products.reduce(function(s,p){return s+(p.isPoli?p.quantity:0);},0);csv+=z+';'+zi[z]+';'+o.customer+';'+prods+';'+colli+';'+(colli*10)+';'+poli+';'+o.address+';'+(o.isNP?'NP':o.total.toFixed(2))+';'+(o.instructions||o.note)+'\n';});var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});var a=el('a',{href:URL.createObjectURL(blob),download:'giri_'+new Date().toISOString().slice(0,10)+'.csv'});document.body.appendChild(a);a.click();document.body.removeChild(a);});
+document.getElementById('btnReset').addEventListener('click',function(){orders=[];document.getElementById('mainView').classList.remove('active');document.getElementById('uploadArea').style.display='';if(mapConsegne){mapConsegne.remove();mapConsegne=null;}if(mapZone){mapZone.remove();mapZone=null;}mapConsegneMarkers=[];mapZoneMarkers=[];});
 
 // ============================================================
-// FILE UPLOAD
+// FILE UPLOAD & PROCESSING
 // ============================================================
 var uploadBox=document.getElementById('uploadBox'),fileInput=document.getElementById('fileInput');
 uploadBox.addEventListener('click',function(){fileInput.click();});
@@ -505,19 +394,27 @@ function processFile(file){
   file.text().then(function(text){
     orders=parseCSV(text);
     if(orders.length===0){showToast('Nessun ordine trovato');return;}
-    console.log('Parsed '+orders.length+' ordini. Esempio:',JSON.stringify(orders[0],null,2));
     document.getElementById('uploadArea').style.display='none';
-    document.getElementById('mainView').classList.add('active');
     var overlay=document.getElementById('loadingOverlay');overlay.classList.add('active');
     var total=orders.length,idx=0,failedGeo=[];
 
     function nextOrder(){
       if(idx>=orders.length){
+        overlay.classList.remove('active');
+        // Google fallback for failed ones
         if(failedGeo.length>0){
           document.getElementById('loadingText').textContent='Google Maps fallback...';
+          overlay.classList.add('active');
           var gi=0;
           function nextG(){
-            if(gi>=failedGeo.length){finish();return;}
+            if(gi>=failedGeo.length){
+              overlay.classList.remove('active');
+              document.getElementById('loadingText').textContent='Geocoding indirizzi...';
+              // Show resolve panel for remaining unfound
+              var stillUnfound=orders.filter(function(o){return!o.lat&&!o.isSede;});
+              showResolvePanel(stillUnfound);
+              return;
+            }
             document.getElementById('loadingProgress').textContent=(gi+1)+'/'+failedGeo.length+' (Google)';
             var o=failedGeo[gi];
             geocodeGoogle(o.address).then(function(r){
@@ -526,18 +423,18 @@ function processFile(file){
             });
           }
           nextG();
-        }else finish();
+        } else {
+          var stillUnfound=orders.filter(function(o){return!o.lat&&!o.isSede;});
+          showResolvePanel(stillUnfound);
+        }
         return;
       }
       document.getElementById('loadingProgress').textContent=(idx+1)+'/'+total;
       var o=orders[idx];
       if(o.isSede){idx++;nextOrder();return;}
       var ck=o.address.toLowerCase().trim();
-      var wasCached=!!geocodeCache[ck];
-      // Use cache first, then Nominatim, then Google fallback
-      if(wasCached){
-        var cached=geocodeCache[ck];
-        o.lat=cached.lat;o.lng=cached.lng;o.zone=findZone(cached.lng,cached.lat);
+      if(geocodeCache[ck]){
+        var cached=geocodeCache[ck];o.lat=cached.lat;o.lng=cached.lng;o.zone=findZone(cached.lng,cached.lat);
         idx++;nextOrder();return;
       }
       geocodeNominatim(o.address).then(function(r){
@@ -545,14 +442,6 @@ function processFile(file){
         else failedGeo.push(o);
         idx++;setTimeout(nextOrder,1100);
       });
-    }
-
-    function finish(){
-      overlay.classList.remove('active');document.getElementById('loadingText').textContent='Geocoding indirizzi...';
-      renderAll();
-      var assigned=orders.filter(function(o){return o.zone;}).length;
-      var noGeo=orders.filter(function(o){return!o.lat&&!o.isSede;}).length;
-      showToast(orders.length+' ordini | '+assigned+' assegnati'+(noGeo>0?' | '+noGeo+' senza coordinate':''));
     }
     nextOrder();
   });
