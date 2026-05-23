@@ -183,6 +183,16 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   </div>
 </div>
 
+<!-- CUSTOM DIALOG -->
+<div class="modal-overlay" id="customDialog">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h3 id="cdTitle">Conferma</h3></div>
+    <div class="modal-body" id="cdBody" style="font-size:13px;line-height:1.6"></div>
+    <div id="cdInputWrap" style="padding:0 20px 12px;display:none"><input type="text" id="cdInput" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px" placeholder=""></div>
+    <div class="modal-footer" id="cdFooter"></div>
+  </div>
+</div>
+
 <!-- BALANCE MODAL -->
 <div class="modal-overlay" id="balanceModal">
   <div class="modal" style="max-width:900px">
@@ -228,11 +238,11 @@ var SERVICE_PRODUCTS=new Set(['servizio di consegna','servizio furgone refrigera
 var ZONE_DISPLAY_ORDER=['NORD-OVEST','NORD-EST','EST','SUD-EST','SUD'];
 
 var ZONES=[
-{name:'SUD',color:'#A52714',polygon:[[9.1813146,45.4643325],[9.1153971,45.4649346],[9.1206753,45.4219377],[9.1817437,45.4221183],[9.1813146,45.4643325]]},
-{name:'EST',color:'#097138',polygon:[[9.2112246,45.4653226],[9.2359902,45.4459329],[9.254104,45.4396688],[9.2603708,45.4585795],[9.2590839,45.4916886],[9.2262889,45.4865018],[9.1969307,45.4853982],[9.2112246,45.4653226]]},
-{name:'NORD-EST',color:'#01579B',polygon:[[9.1912565,45.5220749],[9.1794977,45.4859216],[9.185044,45.4668263],[9.1949442,45.4700666],[9.1961446,45.4861928],[9.2176875,45.4872684],[9.253398,45.4918184],[9.2492781,45.5237587],[9.1912565,45.5220749]]},
-{name:'NORD-OVEST',color:'#F57C00',polygon:[[9.1281797,45.5054021],[9.0996854,45.4833483],[9.1105879,45.471299],[9.1371061,45.4670711],[9.1853429,45.4653555],[9.1799785,45.4813054],[9.1775323,45.4865107],[9.1879178,45.5215811],[9.1281797,45.5054021]]},
-{name:'SUD-EST',color:'#7CB342',polygon:[[9.1818725,45.4635626],[9.1835891,45.4221314],[9.2525961,45.427071],[9.2526819,45.4387557],[9.2295079,45.4468251],[9.2116608,45.4629436],[9.1965494,45.4841163],[9.1947887,45.4632837],[9.1818725,45.4635626]]}
+{name:'SUD',color:'#A52714',polygon:[[9.1816364,45.4655214],[9.1438851,45.4668083],[9.1358784,45.4677059],[9.1279815,45.4686133],[9.1202344,45.4697082],[9.1105128,45.4712388],[9.1206002,45.4218775],[9.1835891,45.4221314],[9.1816364,45.4655214]]},
+{name:'EST',color:'#097138',polygon:[[9.2112246,45.4653226],[9.2359902,45.4459329],[9.254104,45.4396688],[9.2603708,45.4585795],[9.2590839,45.4916886],[9.253398,45.4918184],[9.2436086,45.4905556],[9.2258169,45.488337],[9.2176875,45.4872684],[9.2108946,45.4868146],[9.1961446,45.4861928],[9.2112246,45.4653226]]},
+{name:'NORD-EST',color:'#01579B',polygon:[[9.1879949,45.5220749],[9.1775323,45.4865107],[9.1799785,45.4813054],[9.1805592,45.4764278],[9.1817223,45.4635626],[9.1947887,45.4632837],[9.1961446,45.4861928],[9.2176875,45.4872684],[9.253398,45.4918184],[9.2492781,45.5237587],[9.1879949,45.5220749]]},
+{name:'NORD-OVEST',color:'#F57C00',polygon:[[9.1291878,45.5054172],[9.1006936,45.4833634],[9.1110385,45.4712538],[9.1247268,45.4690806],[9.1382859,45.4674474],[9.1439516,45.4668276],[9.149274,45.4666891],[9.1602618,45.4662307],[9.1816364,45.4655214],[9.1801288,45.4813204],[9.1788197,45.4840435],[9.1776825,45.4865257],[9.1881452,45.5220899],[9.1291878,45.5054172]]},
+{name:'SUD-EST',color:'#7CB342',polygon:[[9.1817223,45.4635626],[9.1835891,45.4221314],[9.2525961,45.427071],[9.254104,45.4396688],[9.2348294,45.4464638],[9.2225994,45.4569171],[9.2112246,45.4653226],[9.1961446,45.4861928],[9.1947887,45.4632837],[9.1817223,45.4635626]]}
 ];
 var ZONE_COLORS={};ZONES.forEach(function(z){ZONE_COLORS[z.name]=z.color;});ZONE_COLORS['RITIRO IN DITTA']='#38bdf8';
 var ALL_ZONE_NAMES=ZONES.map(function(z){return z.name;});
@@ -599,7 +609,7 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom
   header.appendChild(prodsDiv);
   // Colli, Kg, Polibox - all orange if overloaded
   var totalLoad=cargo.totalColli+cargo.totalPoli;
-  var warnCls=totalLoad>=150?' warn':'';
+  var warnCls=totalLoad>150?' warn':'';
   header.appendChild(el('span',{className:'zone-colli'+warnCls,textContent:cargo.totalColli+' colli'}));
   header.appendChild(el('span',{className:'zone-kg'+warnCls,textContent:'Tot '+cargo.totalKg+' kg'}));
   header.appendChild(el('span',{className:'zone-poli'+warnCls,textContent:cargo.totalPoli>0?cargo.totalPoli+' poli':''}));
@@ -795,6 +805,7 @@ function runBalancing(){
   var nDrivers=parseInt(document.getElementById('driverCount').value)||5;
   var suggestions=[];
   var hasSplitDeroga=false;
+  var movedOrderIds={};
 
   // Determine active zones (standard + custom)
   var activeZones=ZONE_DISPLAY_ORDER.slice();
@@ -813,6 +824,42 @@ function runBalancing(){
       }
       activeZones.push(dName);
     }
+  }
+
+  // If drivers > 5: redistribute from overloaded zones to extra drivers
+  if(nDrivers>5){
+    var extraDrivers=activeZones.filter(function(zn){return zn.indexOf('DRIVER ')===0;});
+    var targetPerDriver=Math.ceil(totalLoad/nDrivers);
+
+    extraDrivers.forEach(function(driverZone){
+      // Find most overloaded zone
+      var maxZone=null,maxLoad=0;
+      activeZones.forEach(function(zn){
+        if(zn.indexOf('DRIVER ')===0)return;
+        var zl=getZoneLoad(zn).total;
+        suggestions.forEach(function(s){
+          if(s.type==='move'&&s.to===zn)zl+=getOrderLoad(s.order).total;
+          if(s.type==='move'&&s.from===zn)zl-=getOrderLoad(s.order).total;
+        });
+        if(zl>maxLoad){maxLoad=zl;maxZone=zn;}
+      });
+      if(!maxZone||maxLoad<=targetPerDriver)return;
+
+      // Take border orders from overloaded zone until driver has ~targetPerDriver
+      var driverLoad=0;
+      var zCentroid=getZoneCentroid(maxZone);
+      var zOrders=orders.filter(function(o){return o.zone===maxZone&&o.lat&&o.lng&&!movedOrderIds[o.id];});
+      if(zCentroid){zOrders.sort(function(a,b){return distanceBetween(b.lat,b.lng,zCentroid.lat,zCentroid.lng)-distanceBetween(a.lat,a.lng,zCentroid.lat,zCentroid.lng);});}
+
+      for(var di=0;di<zOrders.length&&driverLoad<targetPerDriver;di++){
+        var dOrder=zOrders[di];
+        var dLoad=getOrderLoad(dOrder).total;
+        if(driverLoad+dLoad>CAPACITY_NORMAL)continue;
+        suggestions.push({type:'move',order:dOrder,from:maxZone,to:driverZone,reason:'Driver extra: '+dOrder.customer+' da '+maxZone+' \u2192 '+driverZone+' (riequilibrio carico)'});
+        movedOrderIds[dOrder.id]=true;
+        driverLoad+=dLoad;
+      }
+    });
   }
 
   // If drivers < 5, we merge zones (assign orders from removed zones to adjacent)
@@ -915,8 +962,7 @@ function runBalancing(){
     }
   });
 
-  // Track which orders have been suggested to move (avoid moving same order twice)
-  var movedOrderIds={};
+  // Track which orders have been suggested to move
   suggestions.forEach(function(s){if(s.type==='move')movedOrderIds[s.order.id]=true;});
 
   // Cascade: free space in a zone by pushing border orders to adjacent zones, recursively
@@ -1136,14 +1182,48 @@ document.getElementById('balanceApplyBtn').addEventListener('click',function(){
 
 document.getElementById('btnBalance').addEventListener('click',runBalancing);
 
+// ============================================================
+// CUSTOM DIALOG (replaces alert/confirm/prompt)
+// ============================================================
+function showDialog(opts){
+  // opts: {title, message, input, inputPlaceholder, buttons:[{text,cls,action}]}
+  var dlg=document.getElementById('customDialog');
+  document.getElementById('cdTitle').textContent=opts.title||'Conferma';
+  var body=document.getElementById('cdBody');
+  while(body.firstChild)body.removeChild(body.firstChild);
+  if(typeof opts.message==='string'){
+    opts.message.split('\n').forEach(function(line){body.appendChild(el('p',{style:{margin:'4px 0'}},line));});
+  }else if(opts.messageEl){body.appendChild(opts.messageEl);}
+  var inputWrap=document.getElementById('cdInputWrap');
+  var inputEl=document.getElementById('cdInput');
+  if(opts.input){inputWrap.style.display='block';inputEl.value='';inputEl.placeholder=opts.inputPlaceholder||'';setTimeout(function(){inputEl.focus();},100);}
+  else{inputWrap.style.display='none';}
+  var footer=document.getElementById('cdFooter');
+  while(footer.firstChild)footer.removeChild(footer.firstChild);
+  (opts.buttons||[]).forEach(function(b){
+    footer.appendChild(el('button',{className:'btn '+(b.cls||''),textContent:b.text,onClick:function(){
+      dlg.classList.remove('active');
+      if(b.action)b.action(inputEl.value);
+    }}));
+  });
+  dlg.classList.add('active');
+}
+
 document.getElementById('btnResetMods').addEventListener('click',function(){
   if(!ordersSnapshot){showToast('Nessuna modifica da resettare');return;}
-  var input=prompt('Tutte le modifiche (spostamenti, divisioni, zone custom) verranno annullate.\n\nDigita "Conferma Reset" per procedere:');
-  if(!input||input.trim()!=='Conferma Reset'){showToast('Reset annullato');return;}
-  orders=JSON.parse(ordersSnapshot);
-  customZones=[];splitOriginals={};expandedZones={};
-  renderAll();
-  showToast('Tutte le modifiche sono state resettate');
+  showDialog({
+    title:'Resetta Modifiche',
+    message:'Tutte le modifiche (spostamenti, divisioni, zone custom) verranno annullate.\n\nDigita "Conferma Reset" per procedere:',
+    input:true,inputPlaceholder:'Conferma Reset',
+    buttons:[
+      {text:'Annulla',cls:'',action:function(){showToast('Reset annullato');}},
+      {text:'Resetta Tutto',cls:'btn-danger',action:function(val){
+        if(val.trim()!=='Conferma Reset'){showToast('Testo non corretto. Reset annullato.');return;}
+        orders=JSON.parse(ordersSnapshot);customZones=[];splitOriginals={};expandedZones={};
+        renderAll();showToast('Tutte le modifiche sono state resettate');
+      }}
+    ]
+  });
 });
 
 // Track which zones are expanded (default: all collapsed)
@@ -1214,21 +1294,28 @@ document.getElementById('btnPrint').addEventListener('click',function(){window.p
 document.getElementById('btnExport').addEventListener('click',function(){
   var unassigned=orders.filter(function(o){return!o.zone&&!o.isSede;});
   if(unassigned.length===0){exportExcel();return;}
-  // Build list of unassigned
-  var names=unassigned.map(function(o){return o.customer+' ('+o.address+')';}).join('\n');
-  var msg='ATTENZIONE: ci sono '+unassigned.length+' ordini NON ASSEGNATI:\n\n'+names+'\n\nVuoi esportare comunque?\n\n[OK] = Esporta comunque\n[Annulla] = Torna per assegnare';
-  if(!confirm(msg)){
-    // Go to non-assegnati tab
-    filters.giri='NON ASSEGNATI';renderAll();
-    showToast('Vai alla scheda NON ASSEGNATI per assegnare gli ordini');
-    return;
-  }
-  // Second confirm
-  if(!confirm('Sei SICURO di voler esportare con '+unassigned.length+' ordini non assegnati? Questi ordini non saranno nei giri dei corrieri.')){
-    filters.giri='NON ASSEGNATI';renderAll();
-    return;
-  }
-  exportExcel();
+  var listEl=el('div');
+  listEl.appendChild(el('p',{style:{fontWeight:'600',color:'var(--red)',marginBottom:'8px'}},'Ci sono '+unassigned.length+' ordini NON ASSEGNATI:'));
+  var ul=el('ul',{style:{maxHeight:'200px',overflowY:'auto',fontSize:'12px',margin:'8px 0',paddingLeft:'18px',color:'#333'}});
+  unassigned.forEach(function(o){ul.appendChild(el('li',{style:{padding:'2px 0'}},o.customer+' \u2014 '+o.address));});
+  listEl.appendChild(ul);
+  showDialog({
+    title:'Esportazione con ordini non assegnati',
+    messageEl:listEl,
+    buttons:[
+      {text:'Vai a Non Assegnati',cls:'',action:function(){filters.giri='NON ASSEGNATI';renderAll();}},
+      {text:'Esporta Comunque',cls:'btn-danger',action:function(){
+        showDialog({
+          title:'Sei sicuro?',
+          message:unassigned.length+' ordini non saranno inclusi nei giri dei corrieri.',
+          buttons:[
+            {text:'Annulla',cls:'',action:function(){filters.giri='NON ASSEGNATI';renderAll();}},
+            {text:'Conferma Export',cls:'btn-danger',action:function(){exportExcel();}}
+          ]
+        });
+      }}
+    ]
+  });
 });
 function exportExcel(){
   var wb=XLSX.utils.book_new();
@@ -1361,16 +1448,23 @@ document.getElementById('btnReset').addEventListener('click',function(){orders=[
 
 // Custom zones
 document.getElementById('btnAddZone').addEventListener('click',function(){
-  var name=prompt('Nome della nuova zona (es. Driver A):');
-  if(!name||!name.trim())return;
-  name=name.trim().toUpperCase();
-  if(ZONE_COLORS[name]||customZones.indexOf(name)!==-1){showToast('Zona "'+name+'" esiste già');return;}
-  customZones.push(name);
-  // Assign a color
-  var customColors=['#9333ea','#e11d48','#0891b2','#65a30d','#c2410c','#4338ca','#b91c1c','#0d9488','#a16207','#6d28d9'];
-  ZONE_COLORS[name]=customColors[(customZones.length-1)%customColors.length];
-  renderAll();
-  showToast('Zona "'+name+'" aggiunta');
+  showDialog({
+    title:'Aggiungi Zona',
+    message:'Inserisci il nome della nuova zona (es. Driver A, Extra 1):',
+    input:true,inputPlaceholder:'Nome zona',
+    buttons:[
+      {text:'Annulla',cls:''},
+      {text:'Aggiungi',cls:'btn-primary',action:function(val){
+        var name=(val||'').trim().toUpperCase();
+        if(!name)return;
+        if(ZONE_COLORS[name]||customZones.indexOf(name)!==-1){showToast('Zona "'+name+'" esiste gi\u00e0');return;}
+        customZones.push(name);
+        var cc=['#9333ea','#e11d48','#0891b2','#65a30d','#c2410c','#4338ca','#b91c1c','#0d9488','#a16207','#6d28d9'];
+        ZONE_COLORS[name]=cc[(customZones.length-1)%cc.length];
+        renderAll();showToast('Zona "'+name+'" aggiunta');
+      }}
+    ]
+  });
 });
 
 function removeCustomZone(name){
