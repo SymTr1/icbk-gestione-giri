@@ -194,7 +194,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 
 <div class="main" id="mainView">
   <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mapConsegne">Mappa Consegne</div><div class="tab" data-tab="mapZone">Mappa + Zone</div></div>
-  <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px">Corrieri: <select id="driverCount" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:12px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label><button class="btn" id="btnBalance">Bilancia</button><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
+  <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px">Corrieri: <select id="driverCount" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:12px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label><button class="btn" id="btnBalance">Bilancia</button><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn btn-danger" id="btnResetMods">Resetta Modifiche</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
   <div class="tab-panel active" id="panel-giri">
     <div class="single-view" id="giriSingle"><div class="zone-filter-bar" id="zfGiri"></div><div id="zonesContainer"></div></div>
     <div class="dual-view" id="giriDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfGiriL"></div><div id="giriDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfGiriR"></div><div id="giriDualRight"></div></div></div></div>
@@ -240,7 +240,7 @@ var SEDE_ZONE='RITIRO IN DITTA';
 function isSedeAddress(a){a=a.toLowerCase();return/via\s+teramo\s+9/i.test(a)||/via\s+(eugenio\s+)?montale\s+(27|29)/i.test(a);}
 
 // ============================================================
-var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,dualMode=false,splitOriginals={},customZones=[];
+var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,dualMode=false,splitOriginals={},customZones=[],ordersSnapshot=null;
 // Filters: each view has its own, dual views have left+right
 var filters={giri:'TUTTI',giriL:'TUTTI',giriR:'TUTTI',map1:'TUTTI',map1L:'TUTTI',map1R:'TUTTI',mz:'TUTTI',mzL:'TUTTI',mzR:'TUTTI'};
 try{var c=localStorage.getItem('icbk_geocode_cache');if(c)geocodeCache=JSON.parse(c);}catch(e){}
@@ -271,7 +271,7 @@ function formatProductsDOM(products){var frag=document.createDocumentFragment();
 // ============================================================
 function showResolvePanel(unfound){if(unfound.length===0){finishResolve();return;}var overlay=document.getElementById('resolveOverlay');var list=document.getElementById('resolveList');document.getElementById('resolveCount').textContent=unfound.length;while(list.firstChild)list.removeChild(list.firstChild);resolveMaps=[];unfound.forEach(function(order,idx){var item=el('div',{className:'resolve-item','data-order-id':order.id});var info=el('div',{className:'resolve-info'});info.appendChild(el('div',{className:'resolve-customer',textContent:order.customer}));info.appendChild(el('div',{className:'resolve-address',textContent:'Indirizzo: '+order.address}));var sr=el('div',{className:'resolve-search'});var si=el('input',{type:'text',placeholder:'Digita indirizzo corretto...',value:cleanAddress(order.address)});var sb=el('button',{className:'btn',textContent:'Cerca',onClick:function(){var q=si.value.trim();if(!q)return;sb.textContent='...';geocodeSearchNominatim(q).then(function(res){sb.textContent='Cerca';rd.textContent='';if(res.length===0){rd.textContent='Nessun risultato. Clicca sulla mappa.';rd.style.color='var(--red)';return;}res.forEach(function(r){rd.appendChild(el('button',{className:'btn',style:{fontSize:'11px',margin:'2px'},textContent:r.display_name.substring(0,80),onClick:function(){applyResolve(order,item,md,parseFloat(r.lat),parseFloat(r.lon));}}));});});}});sr.appendChild(si);sr.appendChild(sb);info.appendChild(sr);var rd=el('div',{className:'resolve-result'});info.appendChild(rd);item.appendChild(info);var mapDiv=el('div',{className:'resolve-map'});var mi=el('div',{className:'resolve-map-inner',id:'rMap'+idx});mapDiv.appendChild(mi);mapDiv.appendChild(el('div',{className:'resolve-hint',textContent:'Clicca sulla mappa per posizionare'}));item.appendChild(mapDiv);list.appendChild(item);var md={map:null,marker:null};resolveMaps.push(md);setTimeout(function(){var m=L.map('rMap'+idx,{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(m);ZONES.forEach(function(z){L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:1.5,fillOpacity:.1}).addTo(m);});md.map=m;m.on('click',function(e){applyResolve(order,item,md,e.latlng.lat,e.latlng.lng);});},100+idx*50);});overlay.classList.add('active');}
 function applyResolve(order,itemEl,md,lat,lng){order.lat=lat;order.lng=lng;order.zone=findZone(lng,lat);geocodeCache[order.address.toLowerCase().trim()]={lat:lat,lng:lng};try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}if(md.marker&&md.map)md.map.removeLayer(md.marker);md.marker=L.marker([lat,lng]).addTo(md.map);md.map.setView([lat,lng],14);itemEl.classList.add('resolved');var re=itemEl.querySelector('.resolve-result');if(re){re.textContent='Zona: '+(order.zone||'Fuori zone');re.style.color='var(--green)';}document.getElementById('resolveCount').textContent=document.querySelectorAll('.resolve-item:not(.resolved)').length;}
-function finishResolve(){document.getElementById('resolveOverlay').classList.remove('active');resolveMaps.forEach(function(md){if(md.map)md.map.remove();});resolveMaps=[];document.getElementById('mainView').classList.add('active');renderAll();}
+function finishResolve(){document.getElementById('resolveOverlay').classList.remove('active');resolveMaps.forEach(function(md){if(md.map)md.map.remove();});resolveMaps=[];ordersSnapshot=JSON.stringify(orders);document.getElementById('mainView').classList.add('active');renderAll();}
 document.getElementById('resolveSkipBtn').addEventListener('click',finishResolve);
 
 // ============================================================
@@ -1089,12 +1089,40 @@ document.getElementById('balanceApplyBtn').addEventListener('click',function(){
 
     if(s.type==='move'){
       s.order.zone=s.to;
+      s.order.isSede=(s.to===SEDE_ZONE);
       applied++;
     }else if(s.type==='split'){
-      // Open split modal for this order
-      // For now, just flag it - user will manually split
-      showToast('Apri divisione per: '+s.order.customer);
-      setTimeout(function(){openSplitModal(s.order.id);},200);
+      // Auto-split: distribute proportionally to 2 nearest zones
+      var order=s.order;
+      var origId=order.originalId||order.id;
+      splitOriginals[origId]=JSON.parse(JSON.stringify(order));
+
+      // Extract target zones from reason text
+      var zoneMatch=s.reason.match(/Divisione tra ([^ ]+) e ([^ ]+)/);
+      var z1=zoneMatch?zoneMatch[1]:s.to;
+      var z2=zoneMatch?zoneMatch[2]:(ZONE_ADJACENCY[s.to]||[''])[0];
+      if(!z2)z2=z1;
+
+      // Calculate capacity ratios for proportional split
+      var load1=getZoneLoad(z1).total;var load2=getZoneLoad(z2).total;
+      var space1=Math.max(1,CAPACITY_SPLIT_DEROGA-load1);var space2=Math.max(1,CAPACITY_SPLIT_DEROGA-load2);
+      var ratio1=space1/(space1+space2);
+
+      // Remove original
+      var origIdx=orders.indexOf(order);
+      if(origIdx!==-1)orders.splice(origIdx,1);
+
+      // Create 2 split orders with proportional products
+      [z1,z2].forEach(function(zn,pi){
+        var ratio=pi===0?ratio1:1-ratio1;
+        var newProducts=[];
+        order.products.forEach(function(p){
+          var qty=pi===0?Math.ceil(p.quantity*ratio):p.quantity-Math.ceil(p.quantity*ratio1);
+          if(qty>0)newProducts.push({name:p.name,quantity:qty,abbr:p.abbr,step:p.step,colli:Math.ceil(qty/p.step),isPoli:p.isPoli,isClear:p.isClear});
+        });
+        var splitAmt=order.isNP?0:(pi===0?Math.round(order.total*ratio1*100)/100:Math.round(order.total*(1-ratio1)*100)/100);
+        orders.push({id:origId+'_split_'+(pi+1),customer:order.customer,products:newProducts,date:order.date,address:order.address,contact:order.contact,instructions:order.instructions,note:order.note,total:splitAmt,isNP:order.isNP,zone:zn,lat:order.lat,lng:order.lng,isSede:false,splitPart:pi+1,splitTotal:2,originalId:origId});
+      });
       applied++;
     }
   });
@@ -1107,6 +1135,16 @@ document.getElementById('balanceApplyBtn').addEventListener('click',function(){
 });
 
 document.getElementById('btnBalance').addEventListener('click',runBalancing);
+
+document.getElementById('btnResetMods').addEventListener('click',function(){
+  if(!ordersSnapshot){showToast('Nessuna modifica da resettare');return;}
+  var input=prompt('Tutte le modifiche (spostamenti, divisioni, zone custom) verranno annullate.\n\nDigita "Conferma Reset" per procedere:');
+  if(!input||input.trim()!=='Conferma Reset'){showToast('Reset annullato');return;}
+  orders=JSON.parse(ordersSnapshot);
+  customZones=[];splitOriginals={};expandedZones={};
+  renderAll();
+  showToast('Tutte le modifiche sono state resettate');
+});
 
 // Track which zones are expanded (default: all collapsed)
 var expandedZones={};
