@@ -352,8 +352,8 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede){
     tr.appendChild(el('td',{className:'col-num',textContent:String(idx+1)}));
     // Customer with split badge
     var custTd=el('td',{className:'col-customer',title:order.customer});
-    custTd.appendChild(document.createTextNode(order.customer));
     if(order.splitPart)custTd.appendChild(el('span',{className:'split-badge',textContent:order.splitPart+'/'+order.splitTotal}));
+    custTd.appendChild(document.createTextNode(order.customer));
     tr.appendChild(custTd);
     var ptd=el('td',{className:'col-products'});if(order.products.length===0)ptd.appendChild(el('span',{style:{color:'var(--red)',fontSize:'11px'}},'(nessun prodotto)'));else ptd.appendChild(formatProductsDOM(order.products));tr.appendChild(ptd);
     tr.appendChild(el('td',{className:'col-address',title:order.address,textContent:order.address}));
