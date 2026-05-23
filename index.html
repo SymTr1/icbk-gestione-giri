@@ -68,25 +68,26 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 /* Split Modal */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,17,23,.9);z-index:300;align-items:center;justify-content:center;}
 .modal-overlay.active{display:flex;}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:700px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:95vw;max-width:1200px;max-height:90vh;overflow-y:auto;}
 .modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
 .modal-header h3{font-size:15px;flex:1;}
 .modal-body{padding:20px;}
 .modal-footer{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
-.split-product-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
-.split-product-name{font-weight:600;width:120px;font-size:13px;}
-.split-product-total{color:var(--text2);width:80px;font-size:12px;}
-.split-slots{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
-.split-slot{display:flex;align-items:center;gap:4px;background:var(--surface2);padding:4px 8px;border-radius:6px;}
-.split-slot label{font-size:11px;color:var(--text2);white-space:nowrap;}
+.split-product-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap;}
+.split-product-name{font-weight:600;min-width:90px;max-width:120px;font-size:13px;flex-shrink:0;}
+.split-product-total{color:var(--text2);min-width:60px;font-size:12px;flex-shrink:0;}
+.split-slots{display:flex;gap:6px;flex-wrap:nowrap;flex:1;overflow-x:auto;}
+.split-slot{display:flex;align-items:center;gap:4px;background:var(--surface2);padding:4px 8px;border-radius:6px;flex-shrink:0;}
+.split-slot label{font-size:10px;color:var(--text2);white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis;}
 .split-slot input{width:60px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;}
 .split-slot input.error{border-color:var(--red);}
-.split-remaining{font-size:12px;margin-top:4px;}
+.split-remaining{font-size:11px;min-width:70px;text-align:right;flex-shrink:0;}
 .split-remaining.ok{color:var(--green);}.split-remaining.err{color:var(--red);}
-.split-zone-add{margin-top:12px;}
 .split-zone-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
 .split-zone-chip{padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);}
 .split-zone-chip.selected{border-color:var(--accent);background:rgba(79,140,255,0.15);color:var(--accent);}
+.split-amount-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:2px solid var(--accent);margin-top:8px;flex-wrap:nowrap;}
+.split-amount-row .split-product-name{color:var(--accent);}
 
 /* Resolve panel */
 .resolve-overlay{display:none;position:fixed;inset:0;background:rgba(15,17,23,.92);z-index:250;overflow-y:auto;padding:20px;}
@@ -238,21 +239,37 @@ function rebuildSplitSlots(order,selectedZones){
     selectedZones.forEach(function(zn){
       var slot=el('div',{className:'split-slot'});
       slot.appendChild(el('label',{textContent:zn}));
-      var inp=el('input',{type:'number',min:'0',max:String(p.quantity),value:'0','data-product':p.abbr,'data-zone':zn,onInput:function(){validateSplit(order);}});
-      slot.appendChild(inp);
+      slot.appendChild(el('input',{type:'number',min:'0',max:String(p.quantity),value:'0','data-product':p.abbr,'data-zone':zn,onInput:function(){validateSplit(order);}}));
       slots.appendChild(slot);
     });
     row.appendChild(slots);
-    var rem=el('div',{className:'split-remaining',id:'splitRem_'+p.abbr.replace(/[^a-zA-Z0-9]/g,'_')});
-    row.appendChild(rem);
+    row.appendChild(el('div',{className:'split-remaining',id:'splitRem_'+p.abbr.replace(/[^a-zA-Z0-9]/g,'_')}));
     container.appendChild(row);
   });
+
+  // Amount row (only if not NP)
+  if(!order.isNP&&order.total>0){
+    var amtRow=el('div',{className:'split-product-row split-amount-row'});
+    amtRow.appendChild(el('div',{className:'split-product-name',textContent:'IMPORTO \u20AC'}));
+    amtRow.appendChild(el('div',{className:'split-product-total',textContent:'Tot: '+order.total.toFixed(2)}));
+    var amtSlots=el('div',{className:'split-slots'});
+    selectedZones.forEach(function(zn){
+      var slot=el('div',{className:'split-slot'});
+      slot.appendChild(el('label',{textContent:zn}));
+      slot.appendChild(el('input',{type:'number',min:'0',step:'0.01',max:String(order.total),value:'0','data-product':'__AMOUNT__','data-zone':zn,onInput:function(){validateSplit(order);}}));
+      amtSlots.appendChild(slot);
+    });
+    amtRow.appendChild(amtSlots);
+    amtRow.appendChild(el('div',{className:'split-remaining',id:'splitRem___AMOUNT__'}));
+    container.appendChild(amtRow);
+  }
+
   validateSplit(order);
 }
 
 function validateSplit(order){
   var allOk=true;
-  var errMsg='';
+  // Validate products
   order.products.forEach(function(p){
     var key=p.abbr.replace(/[^a-zA-Z0-9]/g,'_');
     var inputs=document.querySelectorAll('#splitProductRows input[data-product="'+p.abbr+'"]');
@@ -261,12 +278,25 @@ function validateSplit(order){
     var rem=document.getElementById('splitRem_'+key);
     if(rem){
       var diff=p.quantity-sum;
-      if(diff===0){rem.textContent='OK';rem.className='split-remaining ok';}
-      else if(diff>0){rem.textContent='Rimangono: '+diff;rem.className='split-remaining err';allOk=false;}
-      else{rem.textContent='Eccesso: '+Math.abs(diff);rem.className='split-remaining err';allOk=false;inputs.forEach(function(inp){inp.classList.add('error');});}
+      if(diff===0){rem.textContent='\u2713';rem.className='split-remaining ok';}
+      else if(diff>0){rem.textContent='-'+diff;rem.className='split-remaining err';allOk=false;}
+      else{rem.textContent='+'+Math.abs(diff);rem.className='split-remaining err';allOk=false;inputs.forEach(function(inp){inp.classList.add('error');});}
     }
   });
-  document.getElementById('splitError').textContent=allOk?'':'I totali devono quadrare per ogni prodotto';
+  // Validate amount
+  if(!order.isNP&&order.total>0){
+    var amtInputs=document.querySelectorAll('#splitProductRows input[data-product="__AMOUNT__"]');
+    var amtSum=0;
+    amtInputs.forEach(function(inp){amtSum+=parseFloat(inp.value)||0;inp.classList.remove('error');});
+    var rem=document.getElementById('splitRem___AMOUNT__');
+    if(rem){
+      var diff=Math.round((order.total-amtSum)*100)/100;
+      if(Math.abs(diff)<0.01){rem.textContent='\u2713';rem.className='split-remaining ok';}
+      else if(diff>0){rem.textContent='-\u20AC'+diff.toFixed(2);rem.className='split-remaining err';allOk=false;}
+      else{rem.textContent='+\u20AC'+Math.abs(diff).toFixed(2);rem.className='split-remaining err';allOk=false;amtInputs.forEach(function(inp){inp.classList.add('error');});}
+    }
+  }
+  document.getElementById('splitError').textContent=allOk?'':'Tutti i totali devono quadrare';
   return allOk;
 }
 
@@ -275,23 +305,27 @@ document.getElementById('splitConfirmBtn').addEventListener('click',function(){
   if(!order)return;
   if(!validateSplit(order)){showToast('I totali non quadrano!');return;}
 
-  // Collect zone allocations
-  var zoneAllocs={};
+  // Collect zone allocations for products
+  var zoneAllocs={},zoneAmounts={};
   document.querySelectorAll('#splitProductRows input[type="number"]').forEach(function(inp){
-    var zn=inp.getAttribute('data-zone'),abbr=inp.getAttribute('data-product'),qty=parseInt(inp.value)||0;
-    if(qty<=0)return;
-    if(!zoneAllocs[zn])zoneAllocs[zn]={};
-    zoneAllocs[zn][abbr]=qty;
+    var zn=inp.getAttribute('data-zone'),prod=inp.getAttribute('data-product');
+    if(prod==='__AMOUNT__'){
+      var amt=parseFloat(inp.value)||0;
+      if(amt>0)zoneAmounts[zn]=amt;
+    }else{
+      var qty=parseInt(inp.value)||0;
+      if(qty<=0)return;
+      if(!zoneAllocs[zn])zoneAllocs[zn]={};
+      zoneAllocs[zn][prod]=qty;
+    }
   });
 
   var zoneNames=Object.keys(zoneAllocs);
   if(zoneNames.length<2){showToast('Serve almeno 2 zone con quantita');return;}
 
-  // Remove original order
   var origIdx=orders.indexOf(order);
   orders.splice(origIdx,1);
 
-  // Create split orders
   var total=zoneNames.length;
   zoneNames.forEach(function(zn,i){
     var newProducts=[];
@@ -299,7 +333,8 @@ document.getElementById('splitConfirmBtn').addEventListener('click',function(){
       var qty=zoneAllocs[zn]&&zoneAllocs[zn][p.abbr]?zoneAllocs[zn][p.abbr]:0;
       if(qty>0)newProducts.push({name:p.name,quantity:qty,abbr:p.abbr,step:p.step,colli:Math.ceil(qty/p.step),isPoli:p.isPoli});
     });
-    var newOrder={id:order.id+'_split_'+(i+1),customer:order.customer,products:newProducts,date:order.date,address:order.address,contact:order.contact,instructions:order.instructions,note:order.note,total:0,isNP:order.isNP,zone:zn,lat:order.lat,lng:order.lng,isSede:false,splitPart:i+1,splitTotal:total,originalId:order.id};
+    var splitAmount=zoneAmounts[zn]||0;
+    var newOrder={id:order.id+'_split_'+(i+1),customer:order.customer,products:newProducts,date:order.date,address:order.address,contact:order.contact,instructions:order.instructions,note:order.note,total:splitAmount,isNP:order.isNP,zone:zn,lat:order.lat,lng:order.lng,isSede:false,splitPart:i+1,splitTotal:total,originalId:order.id};
     orders.push(newOrder);
   });
 
