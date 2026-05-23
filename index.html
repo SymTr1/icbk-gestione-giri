@@ -62,6 +62,18 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 /* Add zone modal */
 .add-zone-row{display:flex;gap:8px;padding:8px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center;}
 .add-zone-row input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:12px;}
+/* Balance suggestions */
+.bal-summary{padding:12px 0;font-size:13px;border-bottom:1px solid #e0e0e0;margin-bottom:8px;}
+.bal-summary .bal-ok{color:var(--green);font-weight:600;}
+.bal-summary .bal-warn{color:var(--orange);font-weight:600;}
+.bal-summary .bal-err{color:var(--red);font-weight:600;}
+.bal-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:12px;}
+.bal-item label{display:flex;align-items:center;gap:6px;flex:1;cursor:pointer;}
+.bal-item input[type="checkbox"]{width:16px;height:16px;cursor:pointer;}
+.bal-type{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-right:4px;}
+.bal-type.move{background:#dbeafe;color:#2563eb;}
+.bal-type.split{background:#fef3c7;color:#d97706;}
+.bal-type.driver{background:#fce7f3;color:#be185d;}
 .chevron{transition:transform .2s;font-size:14px;color:var(--text2);margin-left:8px;flex-shrink:0;}
 .zone-table-header.collapsed .chevron{transform:rotate(-90deg);}
 .zone-table-content.collapsed{display:none;}
@@ -165,9 +177,18 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   </div>
 </div>
 
+<!-- BALANCE MODAL -->
+<div class="modal-overlay" id="balanceModal">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-header"><h3>Suggerimenti Bilanciamento</h3><button class="btn" id="balanceCloseBtn">Chiudi</button></div>
+    <div class="modal-body" id="balanceBody" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="modal-footer"><span id="balanceStatus" style="flex:1;font-size:12px"></span><button class="btn btn-primary" id="balanceApplyBtn">Applica Selezionati</button></div>
+  </div>
+</div>
+
 <div class="main" id="mainView">
   <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mapConsegne">Mappa Consegne</div><div class="tab" data-tab="mapZone">Mappa + Zone</div></div>
-  <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
+  <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px">Corrieri: <select id="driverCount" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:12px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label><button class="btn" id="btnBalance">Bilancia</button><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
   <div class="tab-panel active" id="panel-giri">
     <div class="single-view" id="giriSingle"><div class="zone-filter-bar" id="zfGiri"></div><div id="zonesContainer"></div></div>
     <div class="dual-view" id="giriDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfGiriL"></div><div id="giriDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfGiriR"></div><div id="giriDualRight"></div></div></div></div>
@@ -717,6 +738,244 @@ function refreshMapMarkers(map,arr,zoneFilter){
 // ============================================================
 var draggedOrderId=null;
 function attachDrag(){document.querySelectorAll('.orders-table tr[draggable]').forEach(function(row){row.addEventListener('dragstart',function(e){draggedOrderId=this.getAttribute('data-order-id');this.classList.add('dragging');e.dataTransfer.effectAllowed='move';});row.addEventListener('dragend',function(){this.classList.remove('dragging');document.querySelectorAll('.zone-section').forEach(function(s){s.classList.remove('drag-target');});});});document.querySelectorAll('.zone-section').forEach(function(section){section.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';section.classList.add('drag-target');});section.addEventListener('dragleave',function(){section.classList.remove('drag-target');});section.addEventListener('drop',function(e){e.preventDefault();section.classList.remove('drag-target');var tz=section.getAttribute('data-zone');if(!draggedOrderId||!tz)return;var order=orders.find(function(o){return o.id===draggedOrderId;});if(order){var old=order.zone||'NON ASSEGNATI';order.zone=tz==='NON ASSEGNATI'?null:tz;order.isSede=(order.zone===SEDE_ZONE);renderAll();showToast(order.customer+': '+old+' \u2192 '+tz);}draggedOrderId=null;});});}
+// ============================================================
+// BALANCING ALGORITHM
+// ============================================================
+var ZONE_ADJACENCY={
+  'NORD-OVEST':['NORD-EST','SUD'],
+  'NORD-EST':['NORD-OVEST','EST'],
+  'EST':['NORD-EST','SUD-EST'],
+  'SUD-EST':['EST','SUD'],
+  'SUD':['SUD-EST','NORD-OVEST']
+};
+var CAPACITY_NORMAL=150;
+var CAPACITY_SPLIT_DEROGA=180;
+var SPLIT_THRESHOLD_KG=1000; // only propose split for orders >= this
+
+function getOrderLoad(o){
+  var colli=0,poli=0;
+  o.products.forEach(function(p){if(p.isPoli)poli+=p.quantity;else colli+=p.colli;});
+  return{colli:colli,poli:poli,total:colli+poli,kg:colli*10};
+}
+
+function getZoneLoad(zoneName){
+  var load={colli:0,poli:0,total:0,kg:0};
+  orders.forEach(function(o){
+    if(o.zone===zoneName){
+      var ol=getOrderLoad(o);
+      load.colli+=ol.colli;load.poli+=ol.poli;load.total+=ol.total;load.kg+=ol.kg;
+    }
+  });
+  return load;
+}
+
+function distanceBetween(lat1,lng1,lat2,lng2){
+  var dlat=lat2-lat1,dlng=lng2-lng1;
+  return Math.sqrt(dlat*dlat+dlng*dlng);
+}
+
+function getZoneCentroid(zoneName){
+  var z=ZONES.find(function(zz){return zz.name===zoneName;});
+  if(!z)return null;
+  var sumLat=0,sumLng=0;
+  z.polygon.forEach(function(p){sumLng+=p[0];sumLat+=p[1];});
+  return{lat:sumLat/z.polygon.length,lng:sumLng/z.polygon.length};
+}
+
+function runBalancing(){
+  var nDrivers=parseInt(document.getElementById('driverCount').value)||5;
+  var suggestions=[];
+  var hasSplitDeroga=false;
+
+  // Determine active zones (standard + custom)
+  var activeZones=ZONE_DISPLAY_ORDER.slice();
+  customZones.forEach(function(cz){activeZones.push(cz);});
+
+  // If drivers > 5 and not enough custom zones, add Driver zones
+  if(nDrivers>activeZones.length){
+    var lettersNeeded=nDrivers-activeZones.length;
+    var letters='ABCDEFGHIJ';
+    for(var li=0;li<lettersNeeded;li++){
+      var dName='DRIVER '+letters[li];
+      if(customZones.indexOf(dName)===-1){
+        customZones.push(dName);
+        var customColors=['#9333ea','#e11d48','#0891b2','#65a30d','#c2410c','#4338ca','#b91c1c','#0d9488','#a16207','#6d28d9'];
+        ZONE_COLORS[dName]=customColors[(customZones.length-1)%customColors.length];
+      }
+      activeZones.push(dName);
+    }
+  }
+
+  // If drivers < 5, we merge zones (assign orders from removed zones to adjacent)
+  if(nDrivers<5){
+    // Keep the first nDrivers zones in display order, merge rest into nearest
+    var keepZones=ZONE_DISPLAY_ORDER.slice(0,nDrivers);
+    var mergeZones=ZONE_DISPLAY_ORDER.slice(nDrivers);
+    mergeZones.forEach(function(mz){
+      // Find nearest kept zone
+      var mc=getZoneCentroid(mz);
+      var bestZone=keepZones[0],bestDist=Infinity;
+      keepZones.forEach(function(kz){
+        var kc=getZoneCentroid(kz);
+        if(mc&&kc){var d=distanceBetween(mc.lat,mc.lng,kc.lat,kc.lng);if(d<bestDist){bestDist=d;bestZone=kz;}}
+      });
+      orders.forEach(function(o){
+        if(o.zone===mz){
+          suggestions.push({type:'move',order:o,from:mz,to:bestZone,reason:'Accorpamento: '+nDrivers+' corrieri, zona '+mz+' accorpata a '+bestZone});
+        }
+      });
+    });
+    activeZones=keepZones.concat(customZones);
+  }
+
+  // 1. Check global capacity
+  var totalLoad=0;
+  orders.forEach(function(o){if(o.zone&&o.zone!==SEDE_ZONE){totalLoad+=getOrderLoad(o).total;}});
+  var globalCapacity=nDrivers*CAPACITY_NORMAL;
+  var saturationPct=Math.round(totalLoad/globalCapacity*100);
+
+  // 2. For each overloaded zone, propose moves
+  activeZones.forEach(function(zn){
+    var zLoad=getZoneLoad(zn);
+    if(zLoad.total<=CAPACITY_NORMAL)return;
+
+    // Get orders in this zone sorted by distance to zone border (farthest from centroid = closest to border)
+    var zCentroid=getZoneCentroid(zn);
+    var zOrders=orders.filter(function(o){return o.zone===zn&&o.lat&&o.lng;});
+    if(zCentroid){
+      zOrders.sort(function(a,b){
+        var da=distanceBetween(a.lat,a.lng,zCentroid.lat,zCentroid.lng);
+        var db=distanceBetween(b.lat,b.lng,zCentroid.lat,zCentroid.lng);
+        return db-da; // farthest first
+      });
+    }
+
+    // Try to move border orders to adjacent zones
+    var adjacents=(ZONE_ADJACENCY[zn]||[]).filter(function(az){return activeZones.indexOf(az)!==-1;});
+    var simLoad=zLoad.total;
+
+    zOrders.forEach(function(o){
+      if(simLoad<=CAPACITY_NORMAL)return;
+      var oLoad=getOrderLoad(o);
+
+      // Find least loaded adjacent zone
+      var bestAdj=null,bestAdjLoad=Infinity;
+      adjacents.forEach(function(az){
+        var al=getZoneLoad(az);
+        // Count already suggested moves TO this zone
+        suggestions.forEach(function(s){if(s.type==='move'&&s.to===az)al.total+=getOrderLoad(s.order).total;});
+        if(al.total<bestAdjLoad){bestAdjLoad=al.total;bestAdj=az;}
+      });
+
+      if(bestAdj&&bestAdjLoad+oLoad.total<=CAPACITY_NORMAL){
+        suggestions.push({type:'move',order:o,from:zn,to:bestAdj,reason:zn+' sovraccarica ('+simLoad+' colli). '+o.customer+' vicino al bordo con '+bestAdj});
+        simLoad-=oLoad.total;
+      }
+    });
+
+    // If still overloaded, look for big orders to split
+    if(simLoad>CAPACITY_NORMAL){
+      var bigOrders=zOrders.filter(function(o){return getOrderLoad(o).kg>=SPLIT_THRESHOLD_KG&&!o.splitPart;});
+      bigOrders.forEach(function(o){
+        if(simLoad<=CAPACITY_SPLIT_DEROGA)return;
+        var oLoad=getOrderLoad(o);
+        var excess=simLoad-CAPACITY_SPLIT_DEROGA;
+        // Propose split: keep part in this zone, send excess to least loaded adjacent
+        var bestAdj=null,bestAdjLoad=Infinity;
+        adjacents.forEach(function(az){
+          var al=getZoneLoad(az).total;
+          suggestions.forEach(function(s){if(s.type==='move'&&s.to===az)al+=getOrderLoad(s.order).total;});
+          if(al<bestAdjLoad){bestAdjLoad=al;bestAdj=az;}
+        });
+        if(bestAdj){
+          hasSplitDeroga=true;
+          suggestions.push({type:'split',order:o,from:zn,to:bestAdj,reason:o.customer+' ('+oLoad.kg+'kg) causa sovraccarico in '+zn+'. Proposta divisione con '+bestAdj+' (deroga a 180 colli)'});
+          simLoad-=Math.min(excess,oLoad.total/2);
+        }
+      });
+    }
+  });
+
+  // 3. Check if solution is feasible
+  var statusMsg='';var statusCls='bal-ok';
+  if(saturationPct>=100){
+    statusMsg='Capacit\u00e0 insufficiente: '+totalLoad+' colli vs '+globalCapacity+' disponibili ('+saturationPct+'%). Aggiungere corrieri.';
+    statusCls='bal-err';
+  }else if(saturationPct>=90){
+    statusMsg='Attenzione: saturazione al '+saturationPct+'%. Valutare un corriere aggiuntivo.';
+    statusCls='bal-warn';
+  }else{
+    statusMsg='Capacit\u00e0 ok: '+totalLoad+'/'+globalCapacity+' colli ('+saturationPct+'%)';
+    if(hasSplitDeroga)statusMsg+=' - deroga a 180 colli su giri con split';
+  }
+
+  showBalanceModal(suggestions,statusMsg,statusCls);
+}
+
+function showBalanceModal(suggestions,statusMsg,statusCls){
+  var body=document.getElementById('balanceBody');
+  while(body.firstChild)body.removeChild(body.firstChild);
+
+  // Status summary
+  var summary=el('div',{className:'bal-summary'});
+  summary.appendChild(el('span',{className:statusCls,textContent:statusMsg}));
+  body.appendChild(summary);
+
+  if(suggestions.length===0){
+    body.appendChild(el('p',{style:{padding:'12px 0',color:'#666',fontSize:'13px'},textContent:'Nessuno spostamento necessario. Tutti i giri sono entro la portata.'}));
+  }
+
+  suggestions.forEach(function(s,i){
+    var item=el('div',{className:'bal-item'});
+    var cb=el('input',{type:'checkbox',checked:'checked',id:'bal_'+i});
+    var lbl=el('label',{htmlFor:'bal_'+i});
+    lbl.appendChild(cb);
+    var typeSpan=el('span',{className:'bal-type '+(s.type==='move'?'move':s.type==='split'?'split':'driver')});
+    typeSpan.textContent=s.type==='move'?'SPOSTA':s.type==='split'?'DIVIDI':'DRIVER';
+    lbl.appendChild(typeSpan);
+    lbl.appendChild(document.createTextNode(s.reason));
+    item.appendChild(lbl);
+    body.appendChild(item);
+  });
+
+  document.getElementById('balanceStatus').textContent=suggestions.length+' suggerimenti';
+  document.getElementById('balanceModal').classList.add('active');
+
+  // Store suggestions for apply
+  window._balanceSuggestions=suggestions;
+}
+
+document.getElementById('balanceCloseBtn').addEventListener('click',function(){document.getElementById('balanceModal').classList.remove('active');});
+
+document.getElementById('balanceApplyBtn').addEventListener('click',function(){
+  var suggestions=window._balanceSuggestions||[];
+  var applied=0;
+
+  suggestions.forEach(function(s,i){
+    var cb=document.getElementById('bal_'+i);
+    if(!cb||!cb.checked)return;
+
+    if(s.type==='move'){
+      s.order.zone=s.to;
+      applied++;
+    }else if(s.type==='split'){
+      // Open split modal for this order
+      // For now, just flag it - user will manually split
+      showToast('Apri divisione per: '+s.order.customer);
+      setTimeout(function(){openSplitModal(s.order.id);},200);
+      applied++;
+    }
+  });
+
+  document.getElementById('balanceModal').classList.remove('active');
+  if(applied>0){
+    renderAll();
+    showToast(applied+' modifiche applicate');
+  }
+});
+
+document.getElementById('btnBalance').addEventListener('click',runBalancing);
+
 function renderAll(){
   var f=document.getElementById('searchInput').value;
   function fb(id,key){buildFilterBar(id,filters[key],function(zn){filters[key]=zn;renderAll();});}
