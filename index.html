@@ -905,94 +905,127 @@ function runBalancing(){
     }
   });
 
-  // 2b. Assign unassigned orders - smart: free space first, then assign
-  // Simulate zone loads including already-suggested moves
-  var simZoneLoads={};
-  activeZones.forEach(function(zn){simZoneLoads[zn]=getZoneLoad(zn).total;});
+  // 2b. Assign unassigned orders - cascade by proximity
+  var simLoads={};
+  activeZones.forEach(function(zn){simLoads[zn]=getZoneLoad(zn).total;});
   suggestions.forEach(function(s){
     if(s.type==='move'){
-      if(simZoneLoads[s.from]!==undefined)simZoneLoads[s.from]-=getOrderLoad(s.order).total;
-      if(simZoneLoads[s.to]!==undefined)simZoneLoads[s.to]+=getOrderLoad(s.order).total;
+      if(simLoads[s.from]!==undefined)simLoads[s.from]-=getOrderLoad(s.order).total;
+      if(simLoads[s.to]!==undefined)simLoads[s.to]+=getOrderLoad(s.order).total;
     }
   });
 
+  // Track which orders have been suggested to move (avoid moving same order twice)
+  var movedOrderIds={};
+  suggestions.forEach(function(s){if(s.type==='move')movedOrderIds[s.order.id]=true;});
+
+  // Cascade: free space in a zone by pushing border orders to adjacent zones, recursively
+  // Returns array of move suggestions, or null if impossible
+  function cascadeFreeSpace(zoneToFree,spaceNeeded,visited,depth){
+    if(depth>5)return null; // prevent infinite loops
+    if(!visited)visited={};
+    if(visited[zoneToFree])return null;
+    visited[zoneToFree]=true;
+
+    var currentLoad=simLoads[zoneToFree]||0;
+    if(currentLoad+spaceNeeded<=CAPACITY_NORMAL)return[]; // already has space
+
+    var excess=currentLoad+spaceNeeded-CAPACITY_NORMAL;
+    var moves=[];
+    var freedSoFar=0;
+
+    // Get border orders (farthest from centroid = closest to zone boundary)
+    var zCentroid=getZoneCentroid(zoneToFree);
+    var zOrders=orders.filter(function(o){return o.zone===zoneToFree&&o.lat&&o.lng&&!movedOrderIds[o.id];});
+    if(zCentroid){zOrders.sort(function(a,b){return distanceBetween(b.lat,b.lng,zCentroid.lat,zCentroid.lng)-distanceBetween(a.lat,a.lng,zCentroid.lat,zCentroid.lng);});}
+
+    var adjacents=(ZONE_ADJACENCY[zoneToFree]||[]).filter(function(az){return activeZones.indexOf(az)!==-1&&!visited[az];});
+
+    for(var oi=0;oi<zOrders.length&&freedSoFar<excess;oi++){
+      var borderOrder=zOrders[oi];
+      var boLoad=getOrderLoad(borderOrder).total;
+
+      // Try direct move to adjacent with capacity
+      var directPlaced=false;
+      for(var ai=0;ai<adjacents.length&&!directPlaced;ai++){
+        var adjZone=adjacents[ai];
+        if((simLoads[adjZone]||0)+boLoad<=CAPACITY_NORMAL){
+          moves.push({type:'move',order:borderOrder,from:zoneToFree,to:adjZone,reason:'Cascata: '+borderOrder.customer+' da '+zoneToFree+' \u2192 '+adjZone+' (per fare spazio)'});
+          simLoads[zoneToFree]-=boLoad;
+          simLoads[adjZone]+=boLoad;
+          movedOrderIds[borderOrder.id]=true;
+          freedSoFar+=boLoad;
+          directPlaced=true;
+        }
+      }
+
+      // If no adjacent has direct space, try deeper cascade
+      if(!directPlaced){
+        for(var ai2=0;ai2<adjacents.length&&!directPlaced;ai2++){
+          var adjZone2=adjacents[ai2];
+          var subMoves=cascadeFreeSpace(adjZone2,boLoad,Object.assign({},visited),depth+1);
+          if(subMoves!==null){
+            // Sub-cascade worked: apply sub-moves first, then move this order
+            subMoves.forEach(function(sm){moves.push(sm);});
+            moves.push({type:'move',order:borderOrder,from:zoneToFree,to:adjZone2,reason:'Cascata: '+borderOrder.customer+' da '+zoneToFree+' \u2192 '+adjZone2+' (spazio liberato a catena)'});
+            simLoads[zoneToFree]-=boLoad;
+            simLoads[adjZone2]+=boLoad;
+            movedOrderIds[borderOrder.id]=true;
+            freedSoFar+=boLoad;
+            directPlaced=true;
+          }
+        }
+      }
+    }
+
+    return freedSoFar>=excess?moves:null;
+  }
+
   var unassignedOrders=orders.filter(function(o){return!o.zone&&!o.isSede&&o.lat&&o.lng;});
-  // Sort unassigned: biggest first (harder to place)
   unassignedOrders.sort(function(a,b){return getOrderLoad(b).total-getOrderLoad(a).total;});
 
   unassignedOrders.forEach(function(o){
     var oLoad=getOrderLoad(o);
     // Find nearest zones sorted by distance
     var zoneDists=[];
-    activeZones.forEach(function(zn){
-      var zc=getZoneCentroid(zn);if(!zc)return;
-      zoneDists.push({zone:zn,dist:distanceBetween(o.lat,o.lng,zc.lat,zc.lng)});
-    });
+    activeZones.forEach(function(zn){var zc=getZoneCentroid(zn);if(zc)zoneDists.push({zone:zn,dist:distanceBetween(o.lat,o.lng,zc.lat,zc.lng)});});
     zoneDists.sort(function(a,b){return a.dist-b.dist;});
 
     var placed=false;
-    // Try to place in nearest zone that has capacity
+
+    // 1. Try nearest zones with direct capacity
     for(var zi=0;zi<zoneDists.length&&!placed;zi++){
-      var targetZone=zoneDists[zi].zone;
-      var targetLoad=simZoneLoads[targetZone]||0;
-      if(targetLoad+oLoad.total<=CAPACITY_NORMAL){
-        suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:targetZone,reason:'Non assegnato: '+o.customer+' \u2192 '+targetZone+' (zona pi\u00f9 vicina con capacit\u00e0)'});
-        simZoneLoads[targetZone]+=oLoad.total;
+      var tz=zoneDists[zi].zone;
+      if((simLoads[tz]||0)+oLoad.total<=CAPACITY_NORMAL){
+        suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:tz,reason:'Non assegnato: '+o.customer+' \u2192 '+tz+' (vicina con capacit\u00e0)'});
+        simLoads[tz]+=oLoad.total;
         placed=true;
       }
     }
-
     if(placed)return;
 
-    // No zone has direct capacity. Try to free space in nearest zone.
-    var nearestZone=zoneDists.length>0?zoneDists[0].zone:null;
-    if(!nearestZone)return;
-
-    // Find border orders in nearest zone that can cascade to adjacent zones
-    var adj=ZONE_ADJACENCY[nearestZone]||[];
-    var nearCentroid=getZoneCentroid(nearestZone);
-    var nearOrders=orders.filter(function(no){return no.zone===nearestZone&&no.lat&&no.lng;});
-    if(nearCentroid){nearOrders.sort(function(a,b){return distanceBetween(b.lat,b.lng,nearCentroid.lat,nearCentroid.lng)-distanceBetween(a.lat,a.lng,nearCentroid.lat,nearCentroid.lng);});}
-
-    var freed=false;
-    for(var ni=0;ni<nearOrders.length&&!freed;ni++){
-      var borderOrder=nearOrders[ni];
-      var boLoad=getOrderLoad(borderOrder);
-      // Try to move this border order to an adjacent zone
-      for(var ai=0;ai<adj.length&&!freed;ai++){
-        var adjZone=adj[ai];
-        var adjLoad=simZoneLoads[adjZone]||0;
-        if(adjLoad+boLoad.total<=CAPACITY_NORMAL){
-          // Cascade: move border order out, then place unassigned in
-          suggestions.push({type:'move',order:borderOrder,from:nearestZone,to:adjZone,reason:'Cascata: '+borderOrder.customer+' spostato da '+nearestZone+' a '+adjZone+' per fare spazio'});
-          simZoneLoads[nearestZone]-=boLoad.total;
-          simZoneLoads[adjZone]+=boLoad.total;
-          // Now check if unassigned fits
-          if((simZoneLoads[nearestZone]||0)+oLoad.total<=CAPACITY_NORMAL){
-            suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:nearestZone,reason:'Non assegnato: '+o.customer+' \u2192 '+nearestZone+' (spazio liberato)'});
-            simZoneLoads[nearestZone]+=oLoad.total;
-            freed=true;
-          }
-        }
+    // 2. Try cascade from nearest zones (proximity order)
+    for(var zi2=0;zi2<Math.min(zoneDists.length,3)&&!placed;zi2++){
+      var tz2=zoneDists[zi2].zone;
+      var cascMoves=cascadeFreeSpace(tz2,oLoad.total,{},0);
+      if(cascMoves!==null){
+        cascMoves.forEach(function(cm){suggestions.push(cm);});
+        suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:tz2,reason:'Non assegnato: '+o.customer+' \u2192 '+tz2+' (spazio liberato a cascata)'});
+        simLoads[tz2]+=oLoad.total;
+        placed=true;
       }
     }
+    if(placed)return;
 
-    // If still not placed and order is big enough to split
-    if(!freed&&oLoad.kg>=SPLIT_THRESHOLD_KG&&!o.splitPart){
-      var bestTwo=zoneDists.slice(0,2);
-      if(bestTwo.length>=2){
-        hasSplitDeroga=true;
-        suggestions.push({type:'split',order:o,from:'NON ASSEGNATI',to:bestTwo[0].zone,reason:'Non assegnato: '+o.customer+' ('+oLoad.kg+'kg). Divisione tra '+bestTwo[0].zone+' e '+bestTwo[1].zone+' (deroga 180 colli)'});
-      }
-    }else if(!freed){
-      // Last resort: assign to least loaded zone
-      var leastZone=null,leastLoad=Infinity;
-      activeZones.forEach(function(zn){if((simZoneLoads[zn]||0)<leastLoad){leastLoad=simZoneLoads[zn]||0;leastZone=zn;}});
-      if(leastZone){
-        suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:leastZone,reason:'Non assegnato: '+o.customer+' \u2192 '+leastZone+' (meno carica, nessuno spazio ottimale)'});
-        simZoneLoads[leastZone]+=oLoad.total;
-      }
+    // 3. If big enough, propose split between two nearest zones
+    if(oLoad.kg>=SPLIT_THRESHOLD_KG&&!o.splitPart&&zoneDists.length>=2){
+      hasSplitDeroga=true;
+      suggestions.push({type:'split',order:o,from:'NON ASSEGNATI',to:zoneDists[0].zone,reason:'Non assegnato: '+o.customer+' ('+oLoad.kg+'kg). Divisione tra '+zoneDists[0].zone+' e '+zoneDists[1].zone+' (deroga 180 colli)'});
+      return;
     }
+
+    // 4. No solution found - need more drivers
+    suggestions.push({type:'driver',order:o,from:'NON ASSEGNATI',to:'',reason:'Impossibile assegnare: '+o.customer+' ('+oLoad.kg+'kg). Nessuna zona vicina ha spazio. Aggiungere un corriere.'});
   });
 
   // 3. Check if solution is feasible
