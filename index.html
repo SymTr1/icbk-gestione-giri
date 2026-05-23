@@ -31,6 +31,13 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .split-container{display:flex;height:calc(100vh - 200px);min-height:500px;}
 .split-left,.split-right{flex:1;overflow-y:auto;border-right:2px solid #d0d0d0;}.split-right{border-right:none;border-left:2px solid #d0d0d0;}
 .split-label{background:#e8f0fe;color:#2563eb;text-align:center;padding:6px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5;border-bottom:1px solid #d0d0d0;}
+/* Zone filter bar */
+.zone-filter-bar{display:flex;gap:0;padding:0 12px;background:#fff;border-bottom:1px solid #e0e0e0;overflow-x:auto;position:sticky;top:85px;z-index:80;flex-wrap:nowrap;}
+.zone-filter-btn{padding:8px 14px;cursor:pointer;font-size:12px;font-weight:500;color:#666;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;}
+.zone-filter-btn:hover{color:#333;background:#f5f5f5;}
+.zone-filter-btn.active{color:#2563eb;border-bottom-color:#2563eb;font-weight:600;}
+.zone-filter-btn .zf-count{font-size:11px;color:#999;margin-left:2px;}
+.zone-filter-btn.active .zf-count{color:#2563eb;}
 /* Zone header - cargo aligned right */
 .zone-table-header{background:#fafafa;padding:8px 14px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #e0e0e0;border-top:1px solid #e0e0e0;cursor:pointer;user-select:none;}
 .zone-table-header:hover{background:#f0f0f0;}
@@ -136,7 +143,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 <div class="main" id="mainView">
   <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mapConsegne">Mappa Consegne</div><div class="tab" data-tab="mapZone">Mappa + Zone</div></div>
   <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta CSV</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
-  <div class="tab-panel active" id="panel-giri"><div id="zonesContainer"></div></div>
+  <div class="tab-panel active" id="panel-giri"><div class="zone-filter-bar" id="zoneFilterBar"></div><div id="zonesContainer"></div></div>
   <div class="tab-panel" id="panel-mapConsegne"><div class="map-wrapper"><div id="mapConsegne"></div></div></div>
   <div class="tab-panel" id="panel-mapZone"><div class="map-wrapper"><div id="mapZone"></div></div><div class="split-container"><div class="split-left"><div class="split-label">TRASCINA DA QUI</div><div id="splitLeft"></div></div><div class="split-right"><div class="split-label">RILASCIA QUI (o viceversa)</div><div id="splitRight"></div></div></div></div>
 </div>
@@ -163,7 +170,7 @@ var SEDE_ZONE='RITIRO IN DITTA';
 function isSedeAddress(a){a=a.toLowerCase();return/via\s+teramo\s+9/i.test(a)||/via\s+(eugenio\s+)?montale\s+(27|29)/i.test(a);}
 
 // ============================================================
-var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null;
+var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,activeZoneFilter='TUTTI';
 try{var c=localStorage.getItem('icbk_geocode_cache');if(c)geocodeCache=JSON.parse(c);}catch(e){}
 
 // ============================================================
@@ -351,20 +358,61 @@ document.getElementById('splitCloseBtn').addEventListener('click',function(){doc
 // ============================================================
 // RENDER ZONES
 // ============================================================
-function renderZones(containerId,filter){
-  filter=(filter||'').toLowerCase();var container=document.getElementById(containerId);while(container.firstChild)container.removeChild(container.firstChild);
+function renderZones(containerId,filter,zoneFilter){
+  filter=(filter||'').toLowerCase();zoneFilter=zoneFilter||'TUTTI';
+  var container=document.getElementById(containerId);while(container.firstChild)container.removeChild(container.firstChild);
   var grouped={},unassigned=[];
   orders.forEach(function(o){if(filter){var s=(o.customer+' '+o.address+' '+o.products.map(function(p){return p.abbr;}).join(' ')).toLowerCase();if(s.indexOf(filter)===-1)return;}if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);});
 
-  // Use ZONE_DISPLAY_ORDER for circular display
+  // Build zone filter tabs (only for main zonesContainer)
+  if(containerId==='zonesContainer'){
+    var filterBar=document.getElementById('zoneFilterBar');
+    if(filterBar){
+      while(filterBar.firstChild)filterBar.removeChild(filterBar.firstChild);
+      var totalCount=orders.length;
+      // TUTTI tab
+      var allBtn=el('button',{className:'zone-filter-btn'+(zoneFilter==='TUTTI'?' active':''),onClick:function(){activeZoneFilter='TUTTI';renderAll();}});
+      allBtn.appendChild(document.createTextNode('TUTTI'));
+      allBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+totalCount+')'}));
+      filterBar.appendChild(allBtn);
+      // Zone tabs in display order
+      var seenTab={};
+      ZONE_DISPLAY_ORDER.forEach(function(zn){
+        if(seenTab[zn])return;seenTab[zn]=true;
+        var count=(grouped[zn]||[]).length;
+        if(count===0)return;
+        var btn=el('button',{className:'zone-filter-btn'+(zoneFilter===zn?' active':''),onClick:function(){activeZoneFilter=zn;renderAll();}});
+        btn.appendChild(document.createTextNode(zn));
+        btn.appendChild(el('span',{className:'zf-count',textContent:' ('+count+')'}));
+        filterBar.appendChild(btn);
+      });
+      // Remaining zones not in display order
+      Object.keys(grouped).forEach(function(zn){if(!seenTab[zn]&&zn!==SEDE_ZONE){
+        var count=grouped[zn].length;if(count===0)return;
+        var btn=el('button',{className:'zone-filter-btn'+(zoneFilter===zn?' active':''),onClick:function(){activeZoneFilter=zn;renderAll();}});
+        btn.appendChild(document.createTextNode(zn));btn.appendChild(el('span',{className:'zf-count',textContent:' ('+count+')'}));filterBar.appendChild(btn);
+      }});
+      // NON ASSEGNATI tab
+      if(unassigned.length>0){
+        var uBtn=el('button',{className:'zone-filter-btn'+(zoneFilter==='NON ASSEGNATI'?' active':''),onClick:function(){activeZoneFilter='NON ASSEGNATI';renderAll();}});
+        uBtn.appendChild(document.createTextNode('NON ASSEGNATI'));uBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+unassigned.length+')'}));filterBar.appendChild(uBtn);
+      }
+      // RITIRO IN DITTA tab
+      if(grouped[SEDE_ZONE]){
+        var sBtn=el('button',{className:'zone-filter-btn'+(zoneFilter===SEDE_ZONE?' active':''),onClick:function(){activeZoneFilter=SEDE_ZONE;renderAll();}});
+        sBtn.appendChild(document.createTextNode('RITIRO'));sBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+(grouped[SEDE_ZONE]||[]).length+')'}));filterBar.appendChild(sBtn);
+      }
+    }
+  }
+
+  // Render zones (filtered or all)
   var seen={};
   ZONE_DISPLAY_ORDER.forEach(function(zn){
-    if(grouped[zn]&&!seen[zn]){seen[zn]=true;container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));}
+    if(grouped[zn]&&!seen[zn]){seen[zn]=true;if(zoneFilter==='TUTTI'||zoneFilter===zn)container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));}
   });
-  // Any remaining zones not in display order
-  Object.keys(grouped).forEach(function(zn){if(!seen[zn]&&zn!==SEDE_ZONE)container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));});
-  if(unassigned.length>0)container.appendChild(buildZoneSection('NON ASSEGNATI',unassigned,'#f87171',true,false));
-  if(grouped[SEDE_ZONE])container.appendChild(buildZoneSection(SEDE_ZONE,grouped[SEDE_ZONE],ZONE_COLORS[SEDE_ZONE],false,true));
+  Object.keys(grouped).forEach(function(zn){if(!seen[zn]&&zn!==SEDE_ZONE&&(zoneFilter==='TUTTI'||zoneFilter===zn))container.appendChild(buildZoneSection(zn,grouped[zn],ZONE_COLORS[zn]||'#666',false,false));});
+  if(unassigned.length>0&&(zoneFilter==='TUTTI'||zoneFilter==='NON ASSEGNATI'))container.appendChild(buildZoneSection('NON ASSEGNATI',unassigned,'#f87171',true,false));
+  if(grouped[SEDE_ZONE]&&(zoneFilter==='TUTTI'||zoneFilter===SEDE_ZONE))container.appendChild(buildZoneSection(SEDE_ZONE,grouped[SEDE_ZONE],ZONE_COLORS[SEDE_ZONE],false,true));
   attachDrag();
 }
 
@@ -424,7 +472,7 @@ function refreshMapMarkers(map,arr){arr.forEach(function(m){map.removeLayer(m);}
 // ============================================================
 var draggedOrderId=null;
 function attachDrag(){document.querySelectorAll('.orders-table tr[draggable]').forEach(function(row){row.addEventListener('dragstart',function(e){draggedOrderId=this.getAttribute('data-order-id');this.classList.add('dragging');e.dataTransfer.effectAllowed='move';});row.addEventListener('dragend',function(){this.classList.remove('dragging');document.querySelectorAll('.zone-section').forEach(function(s){s.classList.remove('drag-target');});});});document.querySelectorAll('.zone-section').forEach(function(section){section.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';section.classList.add('drag-target');});section.addEventListener('dragleave',function(){section.classList.remove('drag-target');});section.addEventListener('drop',function(e){e.preventDefault();section.classList.remove('drag-target');var tz=section.getAttribute('data-zone');if(!draggedOrderId||!tz)return;var order=orders.find(function(o){return o.id===draggedOrderId;});if(order){var old=order.zone||'NON ASSEGNATI';order.zone=tz==='NON ASSEGNATI'?null:tz;order.isSede=(order.zone===SEDE_ZONE);renderAll();showToast(order.customer+': '+old+' \u2192 '+tz);}draggedOrderId=null;});});}
-function renderAll(){var f=document.getElementById('searchInput').value;renderZones('zonesContainer',f);renderZones('splitLeft',f);renderZones('splitRight',f);updateHeaderStats();if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers);if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers);}
+function renderAll(){var f=document.getElementById('searchInput').value;renderZones('zonesContainer',f,activeZoneFilter);renderZones('splitLeft',f,'TUTTI');renderZones('splitRight',f,'TUTTI');updateHeaderStats();if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers);if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers);}
 
 // TABS + TOOLBAR
 document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});this.classList.add('active');document.getElementById('panel-'+this.getAttribute('data-tab')).classList.add('active');if(this.getAttribute('data-tab')==='mapConsegne'){initMapConsegne();setTimeout(function(){mapConsegne.invalidateSize();refreshMapMarkers(mapConsegne,mapConsegneMarkers);},100);}if(this.getAttribute('data-tab')==='mapZone'){initMapZone();setTimeout(function(){mapZone.invalidateSize();refreshMapMarkers(mapZone,mapZoneMarkers);},100);}});});
