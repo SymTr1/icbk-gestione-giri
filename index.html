@@ -35,7 +35,9 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .split-left,.split-right{flex:1;overflow-y:auto;border-right:2px solid #d0d0d0;}.split-right{border-right:none;border-left:2px solid #d0d0d0;}
 .split-label{background:#e8f0fe;color:#2563eb;text-align:center;padding:6px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5;border-bottom:1px solid #d0d0d0;}
 /* Zone filter bar */
-.zone-filter-bar{display:flex;gap:0;padding:0 12px;background:#fff;border-bottom:1px solid #e0e0e0;overflow-x:auto;flex-wrap:nowrap;}
+.zone-filter-bar{display:flex;gap:0;padding:0 12px;background:#fff;border-bottom:1px solid #e0e0e0;overflow-x:auto;flex-wrap:nowrap;position:sticky;top:0;z-index:8;}
+/* Scrollable table containers - filter bar freezes inside */
+.scroll-zone-panel{height:calc(100vh - 130px);overflow-y:auto;}
 .zone-filter-btn{padding:8px 14px;cursor:pointer;font-size:12px;font-weight:500;color:#666;border:none;background:none;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;}
 .zone-filter-btn:hover{color:#333;background:#f5f5f5;}
 .zone-filter-btn.active{color:#2563eb;border-bottom-color:#2563eb;font-weight:600;}
@@ -147,17 +149,17 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mapConsegne">Mappa Consegne</div><div class="tab" data-tab="mapZone">Mappa + Zone</div></div>
   <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta CSV</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
   <div class="tab-panel active" id="panel-giri">
-    <div class="single-view" id="giriSingle"><div class="zone-filter-bar" id="zfGiri"></div><div id="zonesContainer"></div></div>
+    <div class="single-view scroll-zone-panel" id="giriSingle"><div class="zone-filter-bar" id="zfGiri"></div><div id="zonesContainer"></div></div>
     <div class="dual-view" id="giriDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfGiriL"></div><div id="giriDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfGiriR"></div><div id="giriDualRight"></div></div></div></div>
   </div>
   <div class="tab-panel" id="panel-mapConsegne">
-    <div class="zone-filter-bar" id="zfMap1"></div>
     <div class="map-wrapper"><div id="mapConsegne"></div></div>
+    <div class="single-view scroll-zone-panel" id="map1Single" style="height:calc(100vh - 630px);min-height:300px"><div class="zone-filter-bar" id="zfMap1"></div><div id="map1Container"></div></div>
     <div class="dual-view" id="map1Dual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMap1L"></div><div id="map1DualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMap1R"></div><div id="map1DualRight"></div></div></div></div>
   </div>
   <div class="tab-panel" id="panel-mapZone">
     <div class="map-wrapper"><div id="mapZone"></div></div>
-    <div class="single-view" id="mzSingle"><div class="zone-filter-bar" id="zfMZ"></div><div id="mzContainer"></div></div>
+    <div class="single-view scroll-zone-panel" id="mzSingle" style="height:calc(100vh - 630px);min-height:300px"><div class="zone-filter-bar" id="zfMZ"></div><div id="mzContainer"></div></div>
     <div class="dual-view" id="mzDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMZL"></div><div id="mzDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMZR"></div><div id="mzDualRight"></div></div></div></div>
   </div>
 </div>
@@ -490,8 +492,8 @@ function renderAll(){
     fb('zfGiri','giri');renderZones('zonesContainer',f,filters.giri);
   }
   // Mappa Consegne
-  fb('zfMap1','map1');
   if(dualMode){fb('zfMap1L','map1L');fb('zfMap1R','map1R');renderZones('map1DualLeft',f,filters.map1L);renderZones('map1DualRight',f,filters.map1R);}
+  else{fb('zfMap1','map1');renderZones('map1Container',f,filters.map1);}
   // Mappa + Zone
   if(dualMode){
     fb('zfMZL','mzL');fb('zfMZR','mzR');
