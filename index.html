@@ -905,49 +905,92 @@ function runBalancing(){
     }
   });
 
-  // 2b. Assign unassigned orders to nearest zone
-  var unassignedOrders=orders.filter(function(o){return!o.zone&&!o.isSede;});
+  // 2b. Assign unassigned orders - smart: free space first, then assign
+  // Simulate zone loads including already-suggested moves
+  var simZoneLoads={};
+  activeZones.forEach(function(zn){simZoneLoads[zn]=getZoneLoad(zn).total;});
+  suggestions.forEach(function(s){
+    if(s.type==='move'){
+      if(simZoneLoads[s.from]!==undefined)simZoneLoads[s.from]-=getOrderLoad(s.order).total;
+      if(simZoneLoads[s.to]!==undefined)simZoneLoads[s.to]+=getOrderLoad(s.order).total;
+    }
+  });
+
+  var unassignedOrders=orders.filter(function(o){return!o.zone&&!o.isSede&&o.lat&&o.lng;});
+  // Sort unassigned: biggest first (harder to place)
+  unassignedOrders.sort(function(a,b){return getOrderLoad(b).total-getOrderLoad(a).total;});
+
   unassignedOrders.forEach(function(o){
-    if(!o.lat||!o.lng)return; // can't assign without coordinates
     var oLoad=getOrderLoad(o);
-    // Find nearest zone centroid
-    var bestZone=null,bestDist=Infinity;
+    // Find nearest zones sorted by distance
+    var zoneDists=[];
     activeZones.forEach(function(zn){
-      var zc=getZoneCentroid(zn);
-      if(!zc)return;
-      var d=distanceBetween(o.lat,o.lng,zc.lat,zc.lng);
-      // Also consider zone load - prefer less loaded zones
-      var zl=getZoneLoad(zn);
-      suggestions.forEach(function(s){if(s.type==='move'&&s.to===zn)zl.total+=getOrderLoad(s.order).total;});
-      // Weight distance + load factor
-      var score=d+(zl.total/CAPACITY_NORMAL)*0.01;
-      if(score<bestDist){bestDist=score;bestZone=zn;}
+      var zc=getZoneCentroid(zn);if(!zc)return;
+      zoneDists.push({zone:zn,dist:distanceBetween(o.lat,o.lng,zc.lat,zc.lng)});
     });
-    if(bestZone){
-      // Check if big order needs split
-      if(oLoad.kg>=SPLIT_THRESHOLD_KG&&!o.splitPart){
-        var targetLoad=getZoneLoad(bestZone).total;
-        if(targetLoad+oLoad.total>CAPACITY_NORMAL){
-          // Find second zone for split
-          var adj2=null,adj2Dist=Infinity;
-          activeZones.forEach(function(zn2){
-            if(zn2===bestZone)return;
-            var zc2=getZoneCentroid(zn2);
-            if(!zc2)return;
-            var d2=distanceBetween(o.lat,o.lng,zc2.lat,zc2.lng);
-            if(d2<adj2Dist){adj2Dist=d2;adj2=zn2;}
-          });
-          if(adj2){
-            hasSplitDeroga=true;
-            suggestions.push({type:'split',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' ('+oLoad.kg+'kg). Proposta divisione tra '+bestZone+' e '+adj2});
-          }else{
-            suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' assegnato a '+bestZone+' (zona pi\u00f9 vicina)'});
+    zoneDists.sort(function(a,b){return a.dist-b.dist;});
+
+    var placed=false;
+    // Try to place in nearest zone that has capacity
+    for(var zi=0;zi<zoneDists.length&&!placed;zi++){
+      var targetZone=zoneDists[zi].zone;
+      var targetLoad=simZoneLoads[targetZone]||0;
+      if(targetLoad+oLoad.total<=CAPACITY_NORMAL){
+        suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:targetZone,reason:'Non assegnato: '+o.customer+' \u2192 '+targetZone+' (zona pi\u00f9 vicina con capacit\u00e0)'});
+        simZoneLoads[targetZone]+=oLoad.total;
+        placed=true;
+      }
+    }
+
+    if(placed)return;
+
+    // No zone has direct capacity. Try to free space in nearest zone.
+    var nearestZone=zoneDists.length>0?zoneDists[0].zone:null;
+    if(!nearestZone)return;
+
+    // Find border orders in nearest zone that can cascade to adjacent zones
+    var adj=ZONE_ADJACENCY[nearestZone]||[];
+    var nearCentroid=getZoneCentroid(nearestZone);
+    var nearOrders=orders.filter(function(no){return no.zone===nearestZone&&no.lat&&no.lng;});
+    if(nearCentroid){nearOrders.sort(function(a,b){return distanceBetween(b.lat,b.lng,nearCentroid.lat,nearCentroid.lng)-distanceBetween(a.lat,a.lng,nearCentroid.lat,nearCentroid.lng);});}
+
+    var freed=false;
+    for(var ni=0;ni<nearOrders.length&&!freed;ni++){
+      var borderOrder=nearOrders[ni];
+      var boLoad=getOrderLoad(borderOrder);
+      // Try to move this border order to an adjacent zone
+      for(var ai=0;ai<adj.length&&!freed;ai++){
+        var adjZone=adj[ai];
+        var adjLoad=simZoneLoads[adjZone]||0;
+        if(adjLoad+boLoad.total<=CAPACITY_NORMAL){
+          // Cascade: move border order out, then place unassigned in
+          suggestions.push({type:'move',order:borderOrder,from:nearestZone,to:adjZone,reason:'Cascata: '+borderOrder.customer+' spostato da '+nearestZone+' a '+adjZone+' per fare spazio'});
+          simZoneLoads[nearestZone]-=boLoad.total;
+          simZoneLoads[adjZone]+=boLoad.total;
+          // Now check if unassigned fits
+          if((simZoneLoads[nearestZone]||0)+oLoad.total<=CAPACITY_NORMAL){
+            suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:nearestZone,reason:'Non assegnato: '+o.customer+' \u2192 '+nearestZone+' (spazio liberato)'});
+            simZoneLoads[nearestZone]+=oLoad.total;
+            freed=true;
           }
-        }else{
-          suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' assegnato a '+bestZone+' (zona pi\u00f9 vicina)'});
         }
-      }else{
-        suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' assegnato a '+bestZone+' (zona pi\u00f9 vicina)'});
+      }
+    }
+
+    // If still not placed and order is big enough to split
+    if(!freed&&oLoad.kg>=SPLIT_THRESHOLD_KG&&!o.splitPart){
+      var bestTwo=zoneDists.slice(0,2);
+      if(bestTwo.length>=2){
+        hasSplitDeroga=true;
+        suggestions.push({type:'split',order:o,from:'NON ASSEGNATI',to:bestTwo[0].zone,reason:'Non assegnato: '+o.customer+' ('+oLoad.kg+'kg). Divisione tra '+bestTwo[0].zone+' e '+bestTwo[1].zone+' (deroga 180 colli)'});
+      }
+    }else if(!freed){
+      // Last resort: assign to least loaded zone
+      var leastZone=null,leastLoad=Infinity;
+      activeZones.forEach(function(zn){if((simZoneLoads[zn]||0)<leastLoad){leastLoad=simZoneLoads[zn]||0;leastZone=zn;}});
+      if(leastZone){
+        suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:leastZone,reason:'Non assegnato: '+o.customer+' \u2192 '+leastZone+' (meno carica, nessuno spazio ottimale)'});
+        simZoneLoads[leastZone]+=oLoad.total;
       }
     }
   });
@@ -1032,20 +1075,47 @@ document.getElementById('balanceApplyBtn').addEventListener('click',function(){
 
 document.getElementById('btnBalance').addEventListener('click',runBalancing);
 
+// Track which zones are expanded (default: all collapsed)
+var expandedZones={};
+
+function saveCollapseState(){
+  expandedZones={};
+  document.querySelectorAll('.zone-table-header').forEach(function(h){
+    if(!h.classList.contains('collapsed')){
+      var section=h.closest('.zone-section');
+      if(section){var zn=section.getAttribute('data-zone');if(zn)expandedZones[zn]=true;}
+    }
+  });
+}
+
+function restoreCollapseState(){
+  document.querySelectorAll('.zone-section').forEach(function(section){
+    var zn=section.getAttribute('data-zone');
+    var header=section.querySelector('.zone-table-header');
+    var contents=section.querySelectorAll('.zone-table-content');
+    if(!zn||!header)return;
+    if(expandedZones[zn]){
+      header.classList.remove('collapsed');
+      contents.forEach(function(c){c.classList.remove('collapsed');});
+    }else{
+      header.classList.add('collapsed');
+      contents.forEach(function(c){c.classList.add('collapsed');});
+    }
+  });
+}
+
 function renderAll(){
+  saveCollapseState();
   var f=document.getElementById('searchInput').value;
   function fb(id,key){buildFilterBar(id,filters[key],function(zn){filters[key]=zn;renderAll();});}
-  // Giri per Zona
   if(dualMode){
     fb('zfGiriL','giriL');fb('zfGiriR','giriR');
     renderZones('giriDualLeft',f,filters.giriL);renderZones('giriDualRight',f,filters.giriR);
   }else{
     fb('zfGiri','giri');renderZones('zonesContainer',f,filters.giri);
   }
-  // Mappa Consegne
   if(dualMode){fb('zfMap1L','map1L');fb('zfMap1R','map1R');renderZones('map1DualLeft',f,filters.map1L);renderZones('map1DualRight',f,filters.map1R);}
   else{fb('zfMap1','map1');renderZones('map1Container',f,filters.map1);}
-  // Mappa + Zone
   if(dualMode){
     fb('zfMZL','mzL');fb('zfMZR','mzR');
     renderZones('mzDualLeft',f,filters.mzL);renderZones('mzDualRight',f,filters.mzR);
@@ -1053,6 +1123,7 @@ function renderAll(){
     fb('zfMZ','mz');renderZones('mzContainer',f,filters.mz);
   }
   updateHeaderStats();
+  restoreCollapseState();
   if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers,filters.map1);
   if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers,dualMode?'TUTTI':filters.mz);
 }
