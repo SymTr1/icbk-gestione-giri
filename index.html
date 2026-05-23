@@ -6,7 +6,7 @@
 <title>ICBK - Gestione Giri Consegne</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
 :root{--bg:#f5f5f5;--surface:#ffffff;--surface2:#fafafa;--border:#e0e0e0;--text:#1a1a1a;--text2:#666666;--accent:#2563eb;--accent2:#1d4ed8;--green:#16a34a;--red:#dc2626;--orange:#d97706;--np-bg:#f3e8ff;--np-text:#7c3aed;--sede-color:#0284c7;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -670,10 +670,22 @@ document.getElementById('btnPrint').addEventListener('click',function(){window.p
 document.getElementById('btnExport').addEventListener('click',exportExcel);
 function exportExcel(){
   var wb=XLSX.utils.book_new();
-  var headers=['Cliente','Prodotti','Indirizzo','Note','Importo','Zona'];
-  var colWidths=[{wch:28},{wch:38},{wch:32},{wch:22},{wch:10},{wch:16}];
-  // Print setup: fit all columns on one page, landscape
-  var printSetup={paperSize:9,orientation:'landscape',fitToWidth:1,fitToHeight:0,scale:0};
+  var HDRS=['Cliente','Prodotti','Indirizzo','Note','Importo','Zona'];
+  var colW=[{wch:26},{wch:36},{wch:30},{wch:20},{wch:9},{wch:15}];
+  var numCols=HDRS.length;
+
+  // Styles
+  var sBorder={top:{style:'thin',color:{rgb:'CCCCCC'}},bottom:{style:'thin',color:{rgb:'CCCCCC'}},left:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}};
+  var sTitle={font:{bold:true,sz:14,color:{rgb:'1a1a1a'}},alignment:{horizontal:'left'}};
+  var sCargo={font:{bold:true,sz:11,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'2563EB'}},alignment:{horizontal:'left'}};
+  var sHeader={font:{bold:true,sz:10,color:{rgb:'333333'}},fill:{fgColor:{rgb:'F0F0F0'}},border:sBorder,alignment:{horizontal:'left'}};
+  var sHeaderR={font:{bold:true,sz:10,color:{rgb:'333333'}},fill:{fgColor:{rgb:'F0F0F0'}},border:sBorder,alignment:{horizontal:'right'}};
+  var sCell={font:{sz:10,color:{rgb:'1a1a1a'}},border:sBorder,alignment:{horizontal:'left',vertical:'center',wrapText:false}};
+  var sCellR={font:{sz:10,color:{rgb:'1a1a1a'}},border:sBorder,alignment:{horizontal:'right',vertical:'center'}};
+  var sCellAlt={font:{sz:10,color:{rgb:'1a1a1a'}},fill:{fgColor:{rgb:'FAFAFA'}},border:sBorder,alignment:{horizontal:'left',vertical:'center',wrapText:false}};
+  var sCellAltR={font:{sz:10,color:{rgb:'1a1a1a'}},fill:{fgColor:{rgb:'FAFAFA'}},border:sBorder,alignment:{horizontal:'right',vertical:'center'}};
+  var sNP={font:{bold:true,sz:10,color:{rgb:'7C3AED'}},border:sBorder,alignment:{horizontal:'right',vertical:'center'}};
+  var sNPAlt={font:{bold:true,sz:10,color:{rgb:'7C3AED'}},fill:{fgColor:{rgb:'FAFAFA'}},border:sBorder,alignment:{horizontal:'right',vertical:'center'}};
 
   var grouped={},unassigned=[];
   orders.forEach(function(o){if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);});
@@ -683,61 +695,103 @@ function exportExcel(){
   if(unassigned.length>0)zoneList.push('NON ASSEGNATI');
   if(grouped[SEDE_ZONE])zoneList.push(SEDE_ZONE);
 
-  function orderRow(o){
-    var name=o.customer;if(o.splitPart)name=o.splitPart+'/'+o.splitTotal+' '+name;
-    var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
-    return[name,prods,o.address,o.instructions||o.note,o.isNP?'NP':o.total,o.zone||'N/A'];
-  }
-
-  function cargoLine(orderList,zoneName){
-    var cargo=calcCargo(orderList);
-    var parts=[zoneName,''+orderList.length+' consegne'];
-    // For each product: clear products show colli (cf.), others show pezzi
-    var productsByAbbr={};
-    orderList.forEach(function(o){o.products.forEach(function(p){
-      if(!productsByAbbr[p.abbr])productsByAbbr[p.abbr]={qty:0,colli:0,isClear:p.isClear,isPoli:p.isPoli};
-      productsByAbbr[p.abbr].qty+=p.quantity;
-      productsByAbbr[p.abbr].colli+=p.colli;
-    });});
-    Object.keys(productsByAbbr).forEach(function(abbr){
-      var pt=productsByAbbr[abbr];
-      if(pt.isPoli)return; // polibox shown separately
-      if(pt.isClear){parts.push(pt.colli+' cf. '+abbr);}
-      else{parts.push(pt.qty+' x '+abbr);}
-    });
-    parts.push('Tot '+cargo.totalKg+' kg');
-    if(cargo.totalPoli>0)parts.push(cargo.totalPoli+' Polibox');
+  function cargoText(orderList,zoneName){
+    var cargo=calcCargo(orderList);var parts=[zoneName+' \u2014 '+orderList.length+' consegne'];
+    var pba={};orderList.forEach(function(o){o.products.forEach(function(p){if(!pba[p.abbr])pba[p.abbr]={qty:0,colli:0,isClear:p.isClear,isPoli:p.isPoli};pba[p.abbr].qty+=p.quantity;pba[p.abbr].colli+=p.colli;});});
+    Object.keys(pba).forEach(function(a){var pt=pba[a];if(pt.isPoli)return;if(pt.isClear)parts.push(pt.colli+' cf. '+a);else parts.push(pt.qty+' x '+a);});
+    parts.push('Tot '+cargo.totalKg+' kg');if(cargo.totalPoli>0)parts.push(cargo.totalPoli+' Polibox');
     return parts.join('  |  ');
   }
 
-  // Sheet "TUTTI"
-  var allRows=[['RIEPILOGO GIRI - '+new Date().toLocaleDateString('it-IT')],[]];
+  function applyStyles(ws,rows,startRow){
+    // rows is the data array, startRow is 0-based row where data starts in the sheet
+    var r=startRow;
+    for(var ri=0;ri<rows.length;ri++){
+      var rowData=rows[ri];
+      if(!rowData._type){for(var ci=0;ci<numCols;ci++){var addr=XLSX.utils.encode_cell({r:r,c:ci});if(!ws[addr])continue;}}
+      if(rowData._type==='cargo'){
+        // Merge across all columns and style
+        ws['!merges']=ws['!merges']||[];
+        ws['!merges'].push({s:{r:r,c:0},e:{r:r,c:numCols-1}});
+        var ca=XLSX.utils.encode_cell({r:r,c:0});if(ws[ca])ws[ca].s=sCargo;
+      }else if(rowData._type==='header'){
+        for(var ci=0;ci<numCols;ci++){var a=XLSX.utils.encode_cell({r:r,c:ci});if(ws[a])ws[a].s=(ci===4)?sHeaderR:sHeader;}
+      }else if(rowData._type==='data'){
+        var alt=rowData._alt;
+        for(var ci=0;ci<numCols;ci++){
+          var a=XLSX.utils.encode_cell({r:r,c:ci});if(!ws[a])continue;
+          if(ci===4&&rowData._isNP){ws[a].s=alt?sNPAlt:sNP;}
+          else if(ci===4){ws[a].s=alt?sCellAltR:sCellR;}
+          else{ws[a].s=alt?sCellAlt:sCell;}
+        }
+      }else if(rowData._type==='title'){
+        ws['!merges']=ws['!merges']||[];
+        ws['!merges'].push({s:{r:r,c:0},e:{r:r,c:numCols-1}});
+        var ta=XLSX.utils.encode_cell({r:r,c:0});if(ws[ta])ws[ta].s=sTitle;
+      }
+      r++;
+    }
+  }
+
+  function buildSheet(orderList,zoneName){
+    var meta=[];var aoa=[];
+    // Cargo line
+    var ct=cargoText(orderList,zoneName);
+    aoa.push([ct,'','','','','']);meta.push({_type:'cargo'});
+    // Empty row
+    aoa.push(['','','','','','']);meta.push({_type:'empty'});
+    // Headers
+    aoa.push(HDRS.slice());meta.push({_type:'header'});
+    // Data
+    var dataIdx=0;
+    orderList.forEach(function(o){
+      var name=o.customer;if(o.splitPart)name=o.splitPart+'/'+o.splitTotal+' '+name;
+      var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
+      var importo=o.isNP?'NP':o.total;
+      aoa.push([name,prods,o.address,o.instructions||o.note,importo,o.zone||'N/A']);
+      meta.push({_type:'data',_alt:dataIdx%2===1,_isNP:o.isNP});
+      dataIdx++;
+    });
+    var ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=colW;
+    ws['!pageSetup']={paperSize:9,orientation:'landscape',fitToWidth:1,fitToHeight:0};
+    ws['!margins']={left:0.3,right:0.3,top:0.4,bottom:0.4,header:0.2,footer:0.2};
+    applyStyles(ws,meta,0);
+    return ws;
+  }
+
+  // Sheet "TUTTI" - all zones grouped
+  var allAoa=[];var allMeta=[];
+  allAoa.push(['RIEPILOGO GIRI \u2014 '+new Date().toLocaleDateString('it-IT'),'','','','','']);
+  allMeta.push({_type:'title'});
+  allAoa.push(['','','','','','']);allMeta.push({_type:'empty'});
+
   zoneList.forEach(function(zn){
     var list=zn==='NON ASSEGNATI'?unassigned:grouped[zn];
     if(!list||!list.length)return;
-    allRows.push([cargoLine(list,zn)]);
-    allRows.push(headers);
-    list.forEach(function(o){allRows.push(orderRow(o));});
-    allRows.push([]);
+    allAoa.push([cargoText(list,zn),'','','','','']);allMeta.push({_type:'cargo'});
+    allAoa.push(HDRS.slice());allMeta.push({_type:'header'});
+    var di=0;
+    list.forEach(function(o){
+      var name=o.customer;if(o.splitPart)name=o.splitPart+'/'+o.splitTotal+' '+name;
+      var prods=o.products.map(function(p){return'['+p.quantity+' x '+p.abbr+']';}).join(' + ');
+      allAoa.push([name,prods,o.address,o.instructions||o.note,o.isNP?'NP':o.total,o.zone||'N/A']);
+      allMeta.push({_type:'data',_alt:di%2===1,_isNP:o.isNP});di++;
+    });
+    allAoa.push(['','','','','','']);allMeta.push({_type:'empty'});
   });
-  var wsTutti=XLSX.utils.aoa_to_sheet(allRows);
-  wsTutti['!cols']=colWidths;
-  wsTutti['!pageSetup']=printSetup;
+  var wsTutti=XLSX.utils.aoa_to_sheet(allAoa);
+  wsTutti['!cols']=colW;
+  wsTutti['!pageSetup']={paperSize:9,orientation:'landscape',fitToWidth:1,fitToHeight:0};
+  wsTutti['!margins']={left:0.3,right:0.3,top:0.4,bottom:0.4,header:0.2,footer:0.2};
+  applyStyles(wsTutti,allMeta,0);
   XLSX.utils.book_append_sheet(wb,wsTutti,'TUTTI');
 
-  // One sheet per zone
+  // Per-zone sheets
   zoneList.forEach(function(zn){
     var list=zn==='NON ASSEGNATI'?unassigned:grouped[zn];
     if(!list||!list.length)return;
-    var rows=[];
-    rows.push([cargoLine(list,zn)]);
-    rows.push([]);
-    rows.push(headers);
-    list.forEach(function(o){rows.push(orderRow(o));});
-    var ws=XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols']=colWidths;
-    ws['!pageSetup']=printSetup;
-    XLSX.utils.book_append_sheet(wb,ws,zn.substring(0,31));
+    XLSX.utils.book_append_sheet(wb,buildSheet(list,zn),zn.substring(0,31));
   });
 
   XLSX.writeFile(wb,'giri_'+new Date().toISOString().slice(0,10)+'.xlsx');
