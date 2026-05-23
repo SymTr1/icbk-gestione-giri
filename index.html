@@ -21,47 +21,33 @@
   --orange: #fb923c;
   --np-bg: #2d1f3d;
   --np-text: #c084fc;
+  --sede-bg: #1a2733;
+  --sede-color: #38bdf8;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; }
 
-/* HEADER */
 .header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 100;
 }
 .header h1 { font-size: 18px; font-weight: 700; white-space: nowrap; }
 .header h1 span { color: var(--accent); }
-.header-stats { display: flex; gap: 16px; margin-left: auto; font-size: 12px; }
-.header-stat { display: flex; align-items: center; gap: 4px; color: var(--text2); }
+.header-stats { display: flex; gap: 16px; margin-left: auto; font-size: 12px; flex-wrap: wrap; }
+.header-stat { display: flex; align-items: center; gap: 4px; color: var(--text2); white-space: nowrap; }
 .header-stat strong { color: var(--text); font-size: 14px; }
 
-/* UPLOAD */
-.upload-area {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-height: 60vh; padding: 40px;
-}
-.upload-box {
-  border: 2px dashed var(--border); border-radius: 16px; padding: 60px 80px;
-  text-align: center; cursor: pointer; transition: all .2s; background: var(--surface);
-}
+.upload-area { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; padding: 40px; }
+.upload-box { border: 2px dashed var(--border); border-radius: 16px; padding: 60px 80px; text-align: center; cursor: pointer; transition: all .2s; background: var(--surface); }
 .upload-box:hover, .upload-box.dragover { border-color: var(--accent); background: var(--surface2); }
 .upload-box svg { width: 48px; height: 48px; color: var(--accent); margin-bottom: 16px; }
 .upload-box h2 { font-size: 18px; margin-bottom: 8px; }
 .upload-box p { color: var(--text2); font-size: 14px; }
 
-/* MAIN */
 .main { display: none; }
 .main.active { display: block; }
 
-/* TABS */
 .tabs {
   display: flex; gap: 0; background: var(--surface); border-bottom: 1px solid var(--border);
   padding: 0 20px; position: sticky; top: 49px; z-index: 90;
@@ -73,7 +59,6 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-/* TOOLBAR */
 .toolbar {
   display: flex; gap: 10px; padding: 12px 20px; flex-wrap: wrap; align-items: center;
   background: var(--surface); border-bottom: 1px solid var(--border);
@@ -88,127 +73,112 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
 }
 .btn:hover { border-color: var(--accent); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent2); }
 
-/* TAB PANELS */
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
-/* MAP */
 .map-wrapper { height: 500px; position: relative; }
 #mapConsegne, #mapZone { width: 100%; height: 100%; }
 
-/* ZONE TABLES */
-.zone-section { margin: 0; }
+/* ZONE SECTIONS */
 .zone-table-header {
   background: var(--surface); padding: 10px 20px; display: flex; align-items: center; gap: 10px;
-  border-bottom: 1px solid var(--border); border-top: 1px solid var(--border); cursor: pointer; user-select: none;
+  border-bottom: 1px solid var(--border); border-top: 1px solid var(--border);
+  cursor: pointer; user-select: none;
 }
 .zone-table-header:hover { background: var(--surface2); }
 .zone-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
 .zone-title { font-weight: 600; font-size: 14px; }
-.zone-badge {
-  background: var(--surface2); padding: 2px 10px; border-radius: 12px;
-  font-size: 11px; color: var(--text2); margin-left: 8px;
-}
-.zone-totals {
-  margin-left: auto; display: flex; gap: 12px; font-size: 12px; color: var(--text2);
-}
-.zone-totals strong { color: var(--text); }
+.zone-badge { background: var(--surface2); padding: 2px 10px; border-radius: 12px; font-size: 11px; color: var(--text2); }
+.zone-totals-inline { margin-left: auto; display: flex; gap: 12px; font-size: 12px; color: var(--text2); }
+.zone-totals-inline strong { color: var(--text); }
 .chevron { transition: transform .2s; font-size: 14px; color: var(--text2); margin-left: 8px; }
 .zone-table-header.collapsed .chevron { transform: rotate(-90deg); }
 
-/* TABLE */
-.orders-table {
-  width: 100%; border-collapse: collapse; table-layout: fixed;
+.zone-product-totals {
+  padding: 8px 20px; background: rgba(79,140,255,0.04); border-bottom: 1px solid var(--border);
+  display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text2);
 }
+.zone-product-totals strong { color: var(--text); margin-right: 2px; }
+.zone-table-content.collapsed { display: none; }
+
+/* Sede zone styling */
+.zone-section.sede-zone .zone-table-header { background: var(--sede-bg); }
+.zone-section.sede-zone .zone-dot { background: var(--sede-color) !important; }
+.zone-section.sede-zone .zone-title { color: var(--sede-color); }
+
+/* Unassigned */
+.zone-section.unassigned .zone-table-header { background: rgba(248,113,113,0.08); }
+
+/* TABLE - no fixed layout, let it breathe */
+.orders-table { width: 100%; border-collapse: collapse; }
 .orders-table th {
   background: var(--surface2); padding: 6px 10px; text-align: left; font-size: 11px;
   color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border); position: sticky; white-space: nowrap;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
 }
 .orders-table td {
-  padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top;
 }
 .orders-table tr:hover td { background: var(--surface2); }
 .orders-table tr[draggable="true"] { cursor: grab; }
 .orders-table tr.dragging td { opacity: 0.4; }
 
-/* Column widths */
-.col-customer { width: 18%; }
-.col-products { width: 30%; }
-.col-address { width: 22%; }
-.col-notes { width: 15%; }
-.col-amount { width: 8%; text-align: right; }
-.col-zone { width: 7%; }
+/* Specific column styles */
+.col-num { width: 36px; text-align: center; color: var(--text2); }
+.col-customer { min-width: 140px; max-width: 220px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-products { min-width: 200px; }
+.col-address { min-width: 160px; max-width: 260px; color: var(--text2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-notes { min-width: 100px; max-width: 200px; }
+.col-amount { width: 80px; text-align: right; font-weight: 600; white-space: nowrap; }
 
-.orders-table td.col-amount { text-align: right; font-weight: 600; }
+.product-tag {
+  display: inline-block; background: var(--surface2); padding: 2px 6px; border-radius: 3px;
+  margin: 1px 3px 1px 0; font-size: 11px; white-space: nowrap; line-height: 1.4;
+}
+.notes-text { font-size: 11px; color: var(--orange); font-style: italic; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .np-badge {
   display: inline-block; background: var(--np-bg); color: var(--np-text);
   padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
 }
-.product-tag {
-  display: inline-block; background: var(--surface2); padding: 1px 5px; border-radius: 3px;
-  margin-right: 3px; margin-bottom: 1px; font-size: 11px; white-space: nowrap;
-}
-.notes-text { font-size: 11px; color: var(--orange); font-style: italic; }
 
-.zone-table-content.collapsed { display: none; }
-
-/* ZONE DROP TARGET */
 .zone-section.drag-target .zone-table-header { background: rgba(79,140,255,0.15); border-color: var(--accent); }
 
-/* TOTALS BAR */
-.zone-product-totals {
-  padding: 6px 20px; background: rgba(79,140,255,0.05); border-bottom: 1px solid var(--border);
-  display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text2);
-}
-.zone-product-totals strong { color: var(--text); }
-
-/* Loading */
-.loading-overlay {
-  display: none; position: fixed; inset: 0; background: rgba(15,17,23,0.85);
-  z-index: 200; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
-}
+.loading-overlay { display: none; position: fixed; inset: 0; background: rgba(15,17,23,0.85); z-index: 200; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
 .loading-overlay.active { display: flex; }
 .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text { color: var(--text2); font-size: 14px; }
 .loading-progress { color: var(--text); font-size: 13px; font-weight: 500; }
 
-/* Toast */
-.toast {
-  position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 12px 20px; font-size: 13px; z-index: 300;
-  transform: translateY(100px); opacity: 0; transition: all .3s;
-}
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 13px; z-index: 300; transform: translateY(100px); opacity: 0; transition: all .3s; }
 .toast.show { transform: translateY(0); opacity: 1; }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-/* Print */
+.leaflet-popup-content { font-size: 12px; line-height: 1.5; }
+.popup-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+.popup-product { display: block; font-size: 11px; color: #555; padding: 1px 0; }
+.popup-product b { color: #222; }
+.popup-address { font-size: 11px; color: #888; margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px; }
+.popup-np { color: #9333ea; font-weight: 700; }
+.popup-amount { font-weight: 600; margin-top: 4px; font-size: 13px; }
+
+/* Debug banner */
+.debug-banner { background: #7c2d12; color: #fed7aa; padding: 8px 20px; font-size: 12px; display: none; }
+.debug-banner.show { display: block; }
+
 @media print {
-  .header, .tabs, .toolbar, .upload-area, .map-wrapper, .btn { display: none !important; }
+  .header, .tabs, .toolbar, .upload-area, .map-wrapper, .btn, .debug-banner { display: none !important; }
   .main, .tab-panel { display: block !important; }
   body { background: #fff; color: #000; font-size: 10px; }
   .orders-table th { background: #eee !important; color: #000 !important; }
-  .orders-table td { color: #000 !important; }
+  .orders-table td { color: #000 !important; border-color: #ccc !important; }
   .zone-table-header { background: #f5f5f5 !important; color: #000 !important; }
-  .zone-product-totals { background: #fafafa !important; }
+  .product-tag { background: #eee !important; color: #000 !important; }
 }
-
-/* Leaflet popup override */
-.leaflet-popup-content { font-size: 12px; line-height: 1.4; }
-.popup-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
-.popup-products { margin: 4px 0; }
-.popup-product { display: block; font-size: 11px; color: #555; }
-.popup-address { font-size: 11px; color: #888; margin-top: 4px; }
-.popup-np { color: #9333ea; font-weight: 700; }
-.popup-amount { font-weight: 600; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -227,6 +197,8 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
   <input type="file" id="fileInput" accept=".csv" style="display:none">
 </div>
 
+<div class="debug-banner" id="debugBanner"></div>
+
 <div class="main" id="mainView">
   <div class="tabs">
     <div class="tab active" data-tab="giri">Giri per Zona</div>
@@ -243,17 +215,14 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans
     <button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button>
   </div>
 
-  <!-- TAB: Giri per Zona -->
   <div class="tab-panel active" id="panel-giri">
     <div id="zonesContainer"></div>
   </div>
 
-  <!-- TAB: Mappa Consegne -->
   <div class="tab-panel" id="panel-mapConsegne">
     <div class="map-wrapper"><div id="mapConsegne"></div></div>
   </div>
 
-  <!-- TAB: Mappa + Zone -->
   <div class="tab-panel" id="panel-mapZone">
     <div class="map-wrapper"><div id="mapZone"></div></div>
     <div id="zonesContainerMap"></div>
@@ -338,9 +307,23 @@ var ZONES = [
   { name: 'EST', color: '#0F9D58', polygon: [[9.1940065,45.458672],[9.2165998,45.456113],[9.2566629,45.4469312],[9.2634435,45.5030849],[9.2644735,45.5097618],[9.2456766,45.5120474],[9.2290255,45.4937598],[9.217051,45.4868404],[9.2090269,45.4814847],[9.2034044,45.4767603],[9.1949507,45.4722163],[9.2007871,45.4668592],[9.1999288,45.4649931],[9.1958948,45.4601169],[9.1940065,45.458672]] }
 ];
 
-// Build a color lookup by zone name
 var ZONE_COLORS = {};
 ZONES.forEach(function(z) { ZONE_COLORS[z.name] = z.color; });
+ZONE_COLORS['RITIRO IN DITTA'] = '#38bdf8';
+
+// ============================================================
+// RITIRO IN DITTA - address detection
+// ============================================================
+var SEDE_ZONE = 'RITIRO IN DITTA';
+
+function isSedeAddress(address) {
+  var addr = address.toLowerCase().replace(/\s+/g, ' ').trim();
+  // Via Teramo 9, Milano
+  if (/via\s+teramo\s+9/i.test(addr)) return true;
+  // Via Eugenio Montale 27 or 29, Opera
+  if (/via\s+(eugenio\s+)?montale\s+(27|29)/i.test(addr)) return true;
+  return false;
+}
 
 // ============================================================
 // STATE
@@ -351,6 +334,7 @@ var mapConsegne = null;
 var mapZone = null;
 var mapConsegneMarkers = [];
 var mapZoneMarkers = [];
+var parseErrors = [];
 
 try { var c = localStorage.getItem('icbk_geocode_cache'); if (c) geocodeCache = JSON.parse(c); } catch(e) {}
 
@@ -358,15 +342,14 @@ try { var c = localStorage.getItem('icbk_geocode_cache'); if (c) geocodeCache = 
 // CSV PARSING
 // ============================================================
 function parseCSV(text) {
+  // Split into logical lines (respecting quoted fields with newlines)
   var lines = [];
   var current = '';
   var inQuotes = false;
   for (var i = 0; i < text.length; i++) {
     var ch = text[i];
-    if (ch === '"') {
-      if (text[i+1] === '"') { current += '"'; i++; }
-      else inQuotes = !inQuotes;
-    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+    if (ch === '"') inQuotes = !inQuotes;
+    if ((ch === '\n' || ch === '\r') && !inQuotes) {
       if (current.trim()) lines.push(current);
       current = '';
       if (ch === '\r' && text[i+1] === '\n') i++;
@@ -376,37 +359,69 @@ function parseCSV(text) {
   }
   if (current.trim()) lines.push(current);
 
+  parseErrors = [];
   var results = [];
+
   for (var idx = 1; idx < lines.length; idx++) {
     var fields = splitCSVLine(lines[idx], ';');
     if (fields.length < 9) continue;
 
+    var productsRaw = fields[2];
     var products = [];
+
+    // Strategy 1: replace "" with " (CSV-style double-quote escaping)
     try {
-      var cleaned = fields[2].replace(/""/g, '"').replace(/^"|"$/g, '');
-      products = JSON.parse(cleaned);
-    } catch(e) { try { products = JSON.parse(fields[2]); } catch(e2) {} }
+      var attempt1 = productsRaw.replace(/""/g, '"');
+      products = JSON.parse(attempt1);
+    } catch(e1) {
+      // Strategy 2: try raw
+      try {
+        products = JSON.parse(productsRaw);
+      } catch(e2) {
+        // Strategy 3: strip outer quotes then replace
+        try {
+          var attempt3 = productsRaw.replace(/^"|"$/g, '').replace(/""/g, '"');
+          products = JSON.parse(attempt3);
+        } catch(e3) {
+          parseErrors.push('Riga ' + (idx+1) + ' (' + fields[1] + '): impossibile parsare prodotti');
+          console.warn('Parse fail row', idx+1, fields[1], productsRaw.substring(0, 100));
+        }
+      }
+    }
 
-    var displayProducts = products
-      .filter(function(p) { return p.name !== 'servizio di consegna'; })
-      .map(function(p) {
-        return { name: p.name, quantity: p.quantity, abbr: PRODUCT_ABBREVIATIONS[p.name] || p.name };
+    // Filter out delivery service, abbreviate names
+    var displayProducts = [];
+    for (var pi = 0; pi < products.length; pi++) {
+      var p = products[pi];
+      if (p.name === 'servizio di consegna') continue;
+      displayProducts.push({
+        name: p.name,
+        quantity: p.quantity,
+        abbr: PRODUCT_ABBREVIATIONS[p.name] || p.name
       });
+    }
 
-    var isNP = NP_CLIENTS.has(fields[1].trim().toUpperCase());
+    var customer = fields[1].trim();
+    var address = (fields[4] || '').trim();
+    var isNP = NP_CLIENTS.has(customer.toUpperCase());
+
+    // Check if this is a "Ritiro in Ditta" address
+    var forcedZone = isSedeAddress(address) ? SEDE_ZONE : null;
 
     results.push({
       id: fields[0],
-      customer: fields[1].trim(),
+      customer: customer,
       products: displayProducts,
       date: fields[3],
-      address: (fields[4] || '').trim(),
+      address: address,
       contact: (fields[5] || '').trim(),
       instructions: (fields[6] || '').trim(),
       note: (fields[7] || '').trim(),
       total: parseFloat(fields[8]) || 0,
       isNP: isNP,
-      zone: null, lat: null, lng: null
+      zone: forcedZone,
+      lat: null, lng: null,
+      isSede: !!forcedZone
     });
   }
   return results;
@@ -416,7 +431,10 @@ function splitCSVLine(line, sep) {
   var fields = [], current = '', inQ = false;
   for (var i = 0; i < line.length; i++) {
     var ch = line[i];
-    if (ch === '"') { if (line[i+1] === '"') { current += '"'; i++; } else inQ = !inQ; }
+    if (ch === '"') {
+      if (line[i+1] === '"') { current += '"'; i++; }
+      else inQ = !inQ;
+    }
     else if (ch === sep && !inQ) { fields.push(current); current = ''; }
     else current += ch;
   }
@@ -437,7 +455,7 @@ function geocodeAddress(address) {
     .replace(/Metropolitan City of Milan, Italy/gi, '')
     .trim().replace(/,\s*,/g, ',').replace(/,\s*$/,'');
 
-  if (!/milano|milan/i.test(cleanAddr) && !/novegro|peschiera|melegnano|segrate/i.test(cleanAddr))
+  if (!/milano|milan/i.test(cleanAddr) && !/novegro|peschiera|melegnano|segrate|opera/i.test(cleanAddr))
     cleanAddr += ', Milano, Italy';
   else if (!/italy|italia/i.test(cleanAddr))
     cleanAddr += ', Italy';
@@ -456,9 +474,6 @@ function geocodeAddress(address) {
     }).catch(function() { return null; });
 }
 
-// ============================================================
-// POINT IN POLYGON
-// ============================================================
 function pointInPolygon(lng, lat, polygon) {
   var inside = false;
   for (var i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -501,8 +516,10 @@ function showToast(msg) {
   setTimeout(function() { t.classList.remove('show'); }, 3000);
 }
 
+function escTxt(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 // ============================================================
-// RENDER: ZONE TABLES
+// RENDER ZONES
 // ============================================================
 function renderZones(containerId, filter) {
   filter = (filter || '').toLowerCase();
@@ -525,27 +542,38 @@ function renderZones(containerId, filter) {
     }
   });
 
+  // Render "RITIRO IN DITTA" first if present
+  if (grouped[SEDE_ZONE]) {
+    container.appendChild(buildZoneSection(SEDE_ZONE, grouped[SEDE_ZONE], ZONE_COLORS[SEDE_ZONE], false, true));
+    delete grouped[SEDE_ZONE];
+  }
+
+  // Then sorted zone order
   var zoneOrder = ZONES.map(function(z) { return z.name; });
   var sortedZones = Object.keys(grouped).sort(function(a, b) {
     return (zoneOrder.indexOf(a) === -1 ? 999 : zoneOrder.indexOf(a)) - (zoneOrder.indexOf(b) === -1 ? 999 : zoneOrder.indexOf(b));
   });
 
   sortedZones.forEach(function(zoneName) {
-    container.appendChild(buildZoneSection(zoneName, grouped[zoneName], ZONE_COLORS[zoneName] || '#666', false));
+    container.appendChild(buildZoneSection(zoneName, grouped[zoneName], ZONE_COLORS[zoneName] || '#666', false, false));
   });
 
   if (unassigned.length > 0) {
-    container.appendChild(buildZoneSection('NON ASSEGNATI', unassigned, '#f87171', true));
+    container.appendChild(buildZoneSection('NON ASSEGNATI', unassigned, '#f87171', true, false));
   }
 
   updateHeaderStats();
   attachDrag();
 }
 
-function buildZoneSection(zoneName, zoneOrders, color, isUnassigned) {
-  var section = el('div', { className: 'zone-section' + (isUnassigned ? ' unassigned' : ''), 'data-zone': zoneName });
+function buildZoneSection(zoneName, zoneOrders, color, isUnassigned, isSede) {
+  var cssClass = 'zone-section';
+  if (isUnassigned) cssClass += ' unassigned';
+  if (isSede) cssClass += ' sede-zone';
 
-  // Product totals
+  var section = el('div', { className: cssClass, 'data-zone': zoneName });
+
+  // Compute product totals for this zone
   var productTotals = {};
   var totalItems = 0;
   zoneOrders.forEach(function(o) {
@@ -559,25 +587,32 @@ function buildZoneSection(zoneName, zoneOrders, color, isUnassigned) {
   // Header
   var header = el('div', { className: 'zone-table-header', onClick: function() {
     this.classList.toggle('collapsed');
-    var content = this.nextElementSibling;
-    if (content) content.classList.toggle('collapsed');
-    var table = content ? content.nextElementSibling : null;
-    if (table) table.classList.toggle('collapsed');
+    var next = this.nextElementSibling;
+    while (next && next.classList.contains('zone-table-content')) {
+      next.classList.toggle('collapsed');
+      next = next.nextElementSibling;
+    }
   }});
   header.appendChild(el('div', { className: 'zone-dot', style: { background: color } }));
   header.appendChild(el('span', { className: 'zone-title', textContent: zoneName }));
   header.appendChild(el('span', { className: 'zone-badge', textContent: zoneOrders.length + ' consegne' }));
 
-  var totalsDiv = el('div', { className: 'zone-totals' });
-  var ti = el('span'); ti.appendChild(el('strong', {}, String(totalItems))); ti.appendChild(document.createTextNode(' pezzi'));
-  totalsDiv.appendChild(ti);
-  header.appendChild(totalsDiv);
+  var totalsInline = el('div', { className: 'zone-totals-inline' });
+  var ti = el('span');
+  ti.appendChild(el('strong', {}, String(totalItems)));
+  ti.appendChild(document.createTextNode(' pezzi'));
+  totalsInline.appendChild(ti);
+  header.appendChild(totalsInline);
   header.appendChild(el('span', { className: 'chevron', textContent: '\u25BC' }));
   section.appendChild(header);
 
   // Product breakdown bar
   var breakdownBar = el('div', { className: 'zone-product-totals zone-table-content' });
-  Object.keys(productTotals).forEach(function(name) {
+  var prodNames = Object.keys(productTotals);
+  if (prodNames.length === 0) {
+    breakdownBar.appendChild(el('span', { textContent: 'Nessun prodotto rilevato', style: { color: 'var(--red)' } }));
+  }
+  prodNames.forEach(function(name) {
     var item = el('span');
     item.appendChild(el('strong', {}, String(productTotals[name])));
     item.appendChild(document.createTextNode(' ' + name));
@@ -591,15 +626,15 @@ function buildZoneSection(zoneName, zoneOrders, color, isUnassigned) {
 
   var thead = el('thead');
   var headRow = el('tr');
-  [['#','40px'],['Cliente',''],['Prodotti',''],['Indirizzo',''],['Note',''],['Importo','']].forEach(function(h) {
-    var th = el('th', { textContent: h[0] });
-    if (h[1]) th.style.width = h[1];
-    if (h[0] === 'Cliente') th.className = 'col-customer';
-    if (h[0] === 'Prodotti') th.className = 'col-products';
-    if (h[0] === 'Indirizzo') th.className = 'col-address';
-    if (h[0] === 'Note') th.className = 'col-notes';
-    if (h[0] === 'Importo') th.className = 'col-amount';
-    headRow.appendChild(th);
+  ['#', 'Cliente', 'Prodotti', 'Indirizzo', 'Note', 'Importo'].forEach(function(h) {
+    var cls = '';
+    if (h === '#') cls = 'col-num';
+    if (h === 'Cliente') cls = 'col-customer';
+    if (h === 'Prodotti') cls = 'col-products';
+    if (h === 'Indirizzo') cls = 'col-address';
+    if (h === 'Note') cls = 'col-notes';
+    if (h === 'Importo') cls = 'col-amount';
+    headRow.appendChild(el('th', { className: cls, textContent: h }));
   });
   thead.appendChild(headRow);
   table.appendChild(thead);
@@ -609,24 +644,28 @@ function buildZoneSection(zoneName, zoneOrders, color, isUnassigned) {
     var tr = el('tr', { draggable: 'true', 'data-order-id': order.id, 'data-zone': zoneName });
 
     // #
-    tr.appendChild(el('td', { textContent: String(idx + 1) }));
+    tr.appendChild(el('td', { className: 'col-num', textContent: String(idx + 1) }));
 
     // Customer
     tr.appendChild(el('td', { className: 'col-customer', title: order.customer, textContent: order.customer }));
 
-    // Products
+    // Products - this is the key column
     var prodTd = el('td', { className: 'col-products' });
-    order.products.forEach(function(p) {
-      prodTd.appendChild(el('span', { className: 'product-tag', textContent: p.abbr + ' x' + p.quantity }));
-    });
+    if (order.products.length === 0) {
+      prodTd.appendChild(el('span', { style: { color: 'var(--red)', fontSize: '11px' } }, '(nessun prodotto)'));
+    } else {
+      order.products.forEach(function(p) {
+        prodTd.appendChild(el('span', { className: 'product-tag', textContent: p.abbr + ' x' + p.quantity }));
+      });
+    }
     tr.appendChild(prodTd);
 
     // Address
     tr.appendChild(el('td', { className: 'col-address', title: order.address, textContent: order.address }));
 
     // Notes
-    var noteText = order.instructions || order.note;
     var noteTd = el('td', { className: 'col-notes' });
+    var noteText = order.instructions || order.note;
     if (noteText) noteTd.appendChild(el('span', { className: 'notes-text', title: noteText, textContent: noteText }));
     tr.appendChild(noteTd);
 
@@ -641,6 +680,7 @@ function buildZoneSection(zoneName, zoneOrders, color, isUnassigned) {
 
     tbody.appendChild(tr);
   });
+
   table.appendChild(tbody);
   tableWrap.appendChild(table);
   section.appendChild(tableWrap);
@@ -654,7 +694,17 @@ function updateHeaderStats() {
   var totalPieces = orders.reduce(function(s, o) { return s + o.products.reduce(function(ss, p) { return ss + p.quantity; }, 0); }, 0);
   var zonesSet = {};
   orders.forEach(function(o) { if (o.zone) zonesSet[o.zone] = true; });
-  [[orders.length, 'ordini'],[orders.filter(function(o){return o.zone;}).length, 'assegnati'],[Object.keys(zonesSet).length, 'zone'],[totalPieces, 'pezzi'],[orders.filter(function(o){return o.isNP;}).length, 'NP']].forEach(function(item) {
+  var sedeCount = orders.filter(function(o) { return o.zone === SEDE_ZONE; }).length;
+
+  var items = [
+    [orders.length, 'ordini'],
+    [orders.filter(function(o){return o.zone && o.zone !== SEDE_ZONE;}).length, 'in consegna'],
+    [sedeCount, 'ritiri sede'],
+    [Object.keys(zonesSet).length, 'zone'],
+    [totalPieces, 'pezzi'],
+    [orders.filter(function(o){return o.isNP;}).length, 'NP']
+  ];
+  items.forEach(function(item) {
     var stat = el('div', { className: 'header-stat' });
     stat.appendChild(el('strong', {}, String(item[0])));
     stat.appendChild(document.createTextNode(' ' + item[1]));
@@ -666,22 +716,19 @@ function updateHeaderStats() {
 // MAPS
 // ============================================================
 function buildPopupContent(order) {
-  var prods = order.products.map(function(p) {
-    return '<span class="popup-product">' + escTxt(p.abbr) + ' x' + p.quantity + '</span>';
-  }).join('');
-
-  var amountLine = order.isNP
-    ? '<div class="popup-amount popup-np">NP - Non Paga</div>'
-    : '<div class="popup-amount">\u20AC' + order.total.toFixed(2) + '</div>';
-
-  return '<div class="popup-title">' + escTxt(order.customer) + '</div>' +
-    '<div class="popup-products">' + prods + '</div>' +
-    '<div class="popup-address">' + escTxt(order.address) + '</div>' +
-    amountLine;
-}
-
-function escTxt(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  var lines = '<div class="popup-title">' + escTxt(order.customer) + '</div>';
+  lines += '<div class="popup-products">';
+  order.products.forEach(function(p) {
+    lines += '<span class="popup-product"><b>' + escTxt(p.abbr) + '</b> x' + p.quantity + '</span>';
+  });
+  lines += '</div>';
+  lines += '<div class="popup-address">' + escTxt(order.address) + '</div>';
+  if (order.isNP) {
+    lines += '<div class="popup-amount popup-np">NP - Non Paga</div>';
+  } else {
+    lines += '<div class="popup-amount">\u20AC' + order.total.toFixed(2) + '</div>';
+  }
+  return lines;
 }
 
 function initMapConsegne() {
@@ -694,31 +741,23 @@ function initMapZone() {
   if (mapZone) return;
   mapZone = L.map('mapZone').setView([45.464, 9.19], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(mapZone);
-
-  // Draw zone polygons
   ZONES.forEach(function(z) {
     var coords = z.polygon.map(function(p) { return [p[1], p[0]]; });
     L.polygon(coords, { color: z.color, weight: 2, fillOpacity: 0.15 }).addTo(mapZone)
-      .bindTooltip(z.name, { permanent: false, direction: 'center', className: 'zone-tooltip' });
+      .bindTooltip(z.name, { permanent: false, direction: 'center' });
   });
 }
 
 function refreshMapMarkers(map, markersArray) {
-  // Clear existing
   markersArray.forEach(function(m) { map.removeLayer(m); });
   markersArray.length = 0;
-
   orders.forEach(function(order) {
     if (!order.lat || !order.lng) return;
     var zoneColor = order.zone ? (ZONE_COLORS[order.zone] || '#4f8cff') : '#f87171';
     var marker = L.circleMarker([order.lat, order.lng], {
-      radius: 7,
-      color: '#fff',
-      weight: 2,
-      fillColor: zoneColor,
-      fillOpacity: 0.9
+      radius: 7, color: '#fff', weight: 2, fillColor: zoneColor, fillOpacity: 0.9
     }).addTo(map);
-    marker.bindPopup(buildPopupContent(order), { maxWidth: 280 });
+    marker.bindPopup(buildPopupContent(order), { maxWidth: 300 });
     markersArray.push(marker);
   });
 }
@@ -740,19 +779,18 @@ function attachDrag() {
       document.querySelectorAll('.zone-section').forEach(function(s) { s.classList.remove('drag-target'); });
     });
   });
-
   document.querySelectorAll('.zone-section').forEach(function(section) {
     section.addEventListener('dragover', function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; section.classList.add('drag-target'); });
     section.addEventListener('dragleave', function() { section.classList.remove('drag-target'); });
     section.addEventListener('drop', function(e) {
-      e.preventDefault();
-      section.classList.remove('drag-target');
+      e.preventDefault(); section.classList.remove('drag-target');
       var targetZone = section.getAttribute('data-zone');
       if (!draggedOrderId || !targetZone) return;
       var order = orders.find(function(o) { return o.id === draggedOrderId; });
       if (order) {
         var oldZone = order.zone || 'NON ASSEGNATI';
         order.zone = targetZone === 'NON ASSEGNATI' ? null : targetZone;
+        order.isSede = (order.zone === SEDE_ZONE);
         renderAll();
         showToast(order.customer + ': ' + oldZone + ' \u2192 ' + targetZone);
       }
@@ -780,10 +818,7 @@ document.querySelectorAll('.tab').forEach(function(tab) {
     document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
     document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
     this.classList.add('active');
-    var panelId = 'panel-' + this.getAttribute('data-tab');
-    document.getElementById(panelId).classList.add('active');
-
-    // Lazy init maps
+    document.getElementById('panel-' + this.getAttribute('data-tab')).classList.add('active');
     if (this.getAttribute('data-tab') === 'mapConsegne') {
       initMapConsegne();
       setTimeout(function() { mapConsegne.invalidateSize(); refreshMapMarkers(mapConsegne, mapConsegneMarkers); }, 100);
@@ -825,13 +860,13 @@ document.getElementById('btnExport').addEventListener('click', function() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 });
 document.getElementById('btnReset').addEventListener('click', function() {
-  orders = [];
+  orders = []; parseErrors = [];
   document.getElementById('mainView').classList.remove('active');
   document.getElementById('uploadArea').style.display = '';
+  var db = document.getElementById('debugBanner'); db.classList.remove('show'); db.textContent = '';
   if (mapConsegne) { mapConsegne.remove(); mapConsegne = null; }
   if (mapZone) { mapZone.remove(); mapZone = null; }
-  mapConsegneMarkers = [];
-  mapZoneMarkers = [];
+  mapConsegneMarkers = []; mapZoneMarkers = [];
 });
 
 // ============================================================
@@ -853,6 +888,21 @@ function processFile(file) {
     orders = parseCSV(text);
     if (orders.length === 0) { showToast('Nessun ordine trovato'); return; }
 
+    // Show debug info if there were parse errors
+    if (parseErrors.length > 0) {
+      var db = document.getElementById('debugBanner');
+      db.textContent = 'Attenzione: ' + parseErrors.length + ' ordini con errori di parsing prodotti. Dettagli in console (F12).';
+      db.classList.add('show');
+    }
+
+    // Log parsing summary
+    var withProducts = orders.filter(function(o) { return o.products.length > 0; }).length;
+    var sedeOrders = orders.filter(function(o) { return o.isSede; }).length;
+    console.log('Parsing completato:', orders.length, 'ordini,', withProducts, 'con prodotti,', sedeOrders, 'ritiri in sede');
+    if (orders.length > 0) {
+      console.log('Esempio primo ordine:', JSON.stringify(orders[0], null, 2));
+    }
+
     document.getElementById('uploadArea').style.display = 'none';
     document.getElementById('mainView').classList.add('active');
     var overlay = document.getElementById('loadingOverlay');
@@ -865,11 +915,21 @@ function processFile(file) {
       if (idx >= orders.length) {
         overlay.classList.remove('active');
         renderAll();
-        showToast(orders.length + ' ordini caricati, ' + orders.filter(function(o){return o.zone;}).length + ' assegnati');
+        var assigned = orders.filter(function(o){return o.zone;}).length;
+        var sede = orders.filter(function(o){return o.isSede;}).length;
+        showToast(orders.length + ' ordini | ' + assigned + ' assegnati | ' + sede + ' ritiri sede');
         return;
       }
       document.getElementById('loadingProgress').textContent = (idx + 1) + ' / ' + total;
       var o = orders[idx];
+
+      // Skip geocoding for sede orders (already assigned)
+      if (o.isSede) {
+        idx++;
+        next();
+        return;
+      }
+
       var wasCached = !!geocodeCache[o.address.toLowerCase().trim()];
       geocodeAddress(o.address).then(function(result) {
         if (result) { o.lat = result.lat; o.lng = result.lng; o.zone = findZone(result.lng, result.lat); }
