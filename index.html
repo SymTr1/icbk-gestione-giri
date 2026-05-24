@@ -850,9 +850,11 @@ function simulateBalance(nDrivers,totalLoad){
   customZones.forEach(function(cz){activeZones.push(cz);});
 
   // Plan extra driver zones (do NOT modify global state)
-  if(nDrivers>activeZones.length){
+  // Count how many standard + existing custom zones we have
+  var existingZoneCount=ZONE_DISPLAY_ORDER.length+customZones.length;
+  if(nDrivers>existingZoneCount){
     var letters='ABCDEFGHIJ';
-    for(var li=0;li<nDrivers-activeZones.length;li++){
+    for(var li=0;li<nDrivers-existingZoneCount;li++){
       var dName='DRIVER '+letters[li];
       if(activeZones.indexOf(dName)===-1){simExtraZones.push(dName);activeZones.push(dName);}
     }
@@ -894,12 +896,14 @@ function simulateBalance(nDrivers,totalLoad){
   // PHASE 1: Driver extra - take from heaviest zone, cluster nearby + unassigned
   // ============================================================
   simExtraZones.forEach(function(driverZone){
-    // Find heaviest standard zone
+    // Find heaviest zone (standard or custom, but not other extra drivers)
     var maxZone=null,maxLoad=0;
-    ZONE_DISPLAY_ORDER.forEach(function(zn){
+    activeZones.forEach(function(zn){
+      if(simExtraZones.indexOf(zn)!==-1)return;
       var zl=getSimLoad(zn);if(zl>maxLoad){maxLoad=zl;maxZone=zn;}
     });
-    if(!maxZone)return;
+    if(!maxZone||maxLoad===0)return;
+    console.log('Driver extra '+driverZone+': zona pi\u00f9 carica='+maxZone+' ('+maxLoad+'), target='+targetPerDriver);
 
     // Seed: take the order at the border of the heaviest zone
     // (farthest from its zone's other orders = most "border")
@@ -914,13 +918,16 @@ function simulateBalance(nDrivers,totalLoad){
     var clusterLoad=getOrderLoad(seed).total;
     movedOrderIds[seed.id]=true;
 
-    // Candidates: all orders from overloaded zones + unassigned, with coordinates
+    // Candidates: unassigned + orders from any zone above target (or heaviest)
     var allCandidates=[];
     orders.forEach(function(o){
       if(o.id===seed.id||!o.lat||!o.lng||o.isSede||movedOrderIds[o.id])return;
       var oz=simZone[o.id];
       if(!oz){allCandidates.push({order:o,from:'NON ASSEGNATI'});return;}
-      if(getSimLoad(oz)>targetPerDriver){allCandidates.push({order:o,from:oz});}
+      // Include orders from zones that are above the new target
+      // (with N drivers, target is lower so most zones qualify)
+      var zl=getSimLoad(oz);
+      if(zl>targetPerDriver){allCandidates.push({order:o,from:oz});}
     });
 
     while(clusterLoad<targetPerDriver&&allCandidates.length>0){
