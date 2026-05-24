@@ -247,21 +247,23 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 </div>
 
 <div class="main" id="mainView">
-  <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mapConsegne">Mappa Consegne</div><div class="tab" data-tab="mapZone">Mappa + Zone</div></div>
+  <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mappa">Mappa</div></div>
   <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px">Corrieri: <select id="driverCount" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:12px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label><button class="btn" id="btnBalance">Bilancia</button><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn btn-danger" id="btnResetMods">Resetta Modifiche</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
   <div class="tab-panel active" id="panel-giri">
     <div class="single-view" id="giriSingle"><div class="zone-filter-bar" id="zfGiri"></div><div id="zonesContainer"></div></div>
     <div class="dual-view" id="giriDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfGiriL"></div><div id="giriDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfGiriR"></div><div id="giriDualRight"></div></div></div></div>
   </div>
-  <div class="tab-panel" id="panel-mapConsegne">
-    <div class="map-wrapper"><div id="mapConsegne"></div></div>
-    <div class="single-view" id="map1Single"><div class="zone-filter-bar" id="zfMap1"></div><div id="map1Container"></div></div>
-    <div class="dual-view" id="map1Dual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMap1L"></div><div id="map1DualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMap1R"></div><div id="map1DualRight"></div></div></div></div>
-  </div>
-  <div class="tab-panel" id="panel-mapZone">
-    <div class="map-wrapper"><div id="mapZone"></div></div>
-    <div class="single-view" id="mzSingle"><div class="zone-filter-bar" id="zfMZ"></div><div id="mzContainer"></div></div>
-    <div class="dual-view" id="mzDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMZL"></div><div id="mzDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMZR"></div><div id="mzDualRight"></div></div></div></div>
+  <div class="tab-panel" id="panel-mappa">
+    <div style="display:flex;gap:8px;padding:6px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center">
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="mapShowZones" checked> Zone</label>
+      <span style="border-left:1px solid #ddd;height:16px"></span>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="all" checked> Tutti</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="am"> Mattina</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="pm"> Pomeriggio</label>
+    </div>
+    <div class="map-wrapper"><div id="mainMap"></div></div>
+    <div class="single-view" id="mapSingle"><div class="zone-filter-bar" id="zfMap"></div><div id="mapContainer"></div></div>
+    <div class="dual-view" id="mapDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMapL"></div><div id="mapDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMapR"></div><div id="mapDualRight"></div></div></div></div>
   </div>
 </div>
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div class="loading-text" id="loadingText">Geocoding indirizzi...</div><div class="loading-progress" id="loadingProgress"></div></div>
@@ -328,7 +330,7 @@ function calcCargoByPeriod(zoneOrders){
 }
 
 // ============================================================
-var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,dualMode=false,splitOriginals={},customZones=[],ordersSnapshot=null;
+var orders=[],geocodeCache={},resolveMaps=[],splitOrderId=null,dualMode=false,splitOriginals={},customZones=[],ordersSnapshot=null;
 // Filters: each view has its own, dual views have left+right
 var filters={giri:'TUTTI',giriL:'TUTTI',giriR:'TUTTI',map1:'TUTTI',map1L:'TUTTI',map1R:'TUTTI',mz:'TUTTI',mzL:'TUTTI',mzR:'TUTTI'};
 var periodFilter='all'; // 'all', 'am', 'pm'
@@ -695,12 +697,20 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom
   }else{header.appendChild(el('span',{className:'zone-title',textContent:zoneName}));}
   header.appendChild(el('span',{className:'zone-badge',textContent:zoneOrders.length+' cons'}));
   var prodsDiv=el('div',{className:'zone-products'});
-  Object.keys(cargo.productTotals).forEach(function(abbr){prodsDiv.appendChild(el('span',{className:'zp-item',textContent:cargo.productTotals[abbr].qty+'x'+abbr}));});
+  Object.keys(cargo.productTotals).forEach(function(abbr){
+    var pt=cargo.productTotals[abbr];
+    if(pt.isPoli)return;
+    var isClear=false;
+    zoneOrders.forEach(function(o){o.products.forEach(function(p){if(p.abbr===abbr&&p.isClear)isClear=true;});});
+    prodsDiv.appendChild(el('span',{className:'zp-item',textContent:isClear?pt.colli+' cf. '+abbr:pt.qty+'x'+abbr}));
+  });
   header.appendChild(prodsDiv);
   var totalLoad=cargo.totalColli+cargo.totalPoli;
-  var warnCls=totalLoad>150?' warn':'';
-  header.appendChild(el('span',{className:'zone-colli'+warnCls,textContent:cargo.totalColli+' colli'}));
-  header.appendChild(el('span',{className:'zone-kg'+warnCls,textContent:'Tot '+cargo.totalKg+' kg'}));
+  var periodCargo=calcCargoByPeriod(zoneOrders);
+  var zoneWarn=totalLoad>350||periodCargo.am.total>160||periodCargo.pm.total>160;
+  var warnCls=zoneWarn?' warn':'';
+  header.appendChild(el('span',{className:'zone-colli'+warnCls,textContent:totalLoad+' colli'}));
+  header.appendChild(el('span',{className:'zone-kg'+warnCls,textContent:cargo.totalKg+' kg'}));
   header.appendChild(el('span',{className:'zone-poli'+warnCls,textContent:cargo.totalPoli>0?cargo.totalPoli+' poli':''}));
   header.appendChild(el('span',{className:'chevron',textContent:'\u25BC'}));
   section.appendChild(header);
@@ -732,7 +742,7 @@ function buildPeriodSection(periodOrders,period,zoneName){
   var wrap=el('div');
   var cargo=calcCargo(periodOrders);
   var totalLoad=cargo.totalColli+cargo.totalPoli;
-  var isWarn=totalLoad>150;
+  var isWarn=totalLoad>160;
   var label=period==='pm'?'POMERIGGIO':'MATTINA';
 
   // Period header
@@ -742,10 +752,18 @@ function buildPeriodSection(periodOrders,period,zoneName){
   }});
   ph.appendChild(el('span',{className:'period-label',textContent:label+' ('+periodOrders.length+')'}));
   var stats=el('div',{className:'period-stats'});
-  Object.keys(cargo.productTotals).forEach(function(abbr){stats.appendChild(el('span',{className:'ps-item',textContent:cargo.productTotals[abbr].qty+'x'+abbr}));});
-  stats.appendChild(el('span',{className:'ps-item'+(isWarn?' ps-warn':''),textContent:cargo.totalColli+' colli'}));
-  stats.appendChild(el('span',{className:'ps-item'+(isWarn?' ps-warn':''),textContent:cargo.totalKg+'kg'}));
-  if(cargo.totalPoli>0)stats.appendChild(el('span',{className:'ps-item'+(isWarn?' ps-warn':''),textContent:cargo.totalPoli+' poli'}));
+  // Products: CLEAR as cf, others as qty
+  Object.keys(cargo.productTotals).forEach(function(abbr){
+    var pt=cargo.productTotals[abbr];
+    if(pt.isPoli)return; // shown separately
+    var isClear=false;
+    periodOrders.forEach(function(o){o.products.forEach(function(p){if(p.abbr===abbr&&p.isClear)isClear=true;});});
+    stats.appendChild(el('span',{className:'ps-item',textContent:isClear?pt.colli+' cf. '+abbr:pt.qty+'x'+abbr}));
+  });
+  var wCls=isWarn?' ps-warn':'';
+  stats.appendChild(el('span',{className:'ps-item'+wCls,textContent:totalLoad+' colli'}));
+  stats.appendChild(el('span',{className:'ps-item'+wCls,textContent:cargo.totalKg+'kg'}));
+  if(cargo.totalPoli>0)stats.appendChild(el('span',{className:'ps-item'+wCls,textContent:cargo.totalPoli+' poli'}));
   ph.appendChild(stats);
   ph.appendChild(el('span',{className:'period-chevron',textContent:'\u25BC'}));
   wrap.appendChild(ph);
@@ -897,25 +915,72 @@ function updateHeaderStats(){var stats=document.getElementById('headerStats');wh
 // ============================================================
 // MAPS
 // ============================================================
-function buildPopupContent(o){var l='<div class="popup-title">'+escTxt(o.customer)+(o.splitPart?' <small>'+o.splitPart+'/'+o.splitTotal+'</small>':'')+'</div><div>';o.products.forEach(function(p){l+='<span class="popup-product"><b>['+p.quantity+' x '+escTxt(p.abbr)+']</b></span>';});l+='</div><div class="popup-address">'+escTxt(o.address)+'</div>';if(o.zone)l+='<div class="popup-zone">Zona: '+escTxt(o.zone)+'</div>';l+=o.isNP?'<div class="popup-amount popup-np">NP</div>':'<div class="popup-amount">\u20AC'+o.total.toFixed(2)+'</div>';return l;}
-function initMapConsegne(){if(mapConsegne)return;mapConsegne=L.map('mapConsegne',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapConsegne);mapConsegne.on('click',function(){mapConsegne.scrollWheelZoom.enable();});mapConsegne.on('mouseout',function(){mapConsegne.scrollWheelZoom.disable();});}
-function initMapZone(){if(mapZone)return;mapZone=L.map('mapZone',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mapZone);mapZone.on('click',function(){mapZone.scrollWheelZoom.enable();});mapZone.on('mouseout',function(){mapZone.scrollWheelZoom.disable();});ZONES.forEach(function(z){L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:2,fillOpacity:.15}).addTo(mapZone).bindTooltip(z.name,{permanent:false,direction:'center'});});}
-function refreshMapMarkers(map,arr,zoneFilter){
-  zoneFilter=zoneFilter||'TUTTI';
-  arr.forEach(function(m){map.removeLayer(m);});arr.length=0;
+function buildPopupContent(o){
+  var period=getTimePeriod(o);
+  var periodBadge=period==='pm'?'<span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:500">PM</span>':'<span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:500">AM</span>';
+  var l='<div class="popup-title">'+periodBadge+' '+escTxt(o.customer)+(o.splitPart?' <small>'+o.splitPart+'/'+o.splitTotal+'</small>':'')+'</div>';
+  if(o.timeslot)l+='<div style="font-size:11px;color:#666;margin-bottom:4px">'+escTxt(o.timeslot)+'</div>';
+  l+='<div>';o.products.forEach(function(p){l+='<span class="popup-product"><b>['+p.quantity+' x '+escTxt(p.abbr)+']</b></span>';});l+='</div>';
+  l+='<div class="popup-address">'+escTxt(o.address)+'</div>';
+  if(o.zone)l+='<div class="popup-zone">Zona: '+escTxt(o.zone)+'</div>';
+  if(o.driverName)l+='<div style="font-size:11px;color:#666">Driver: '+escTxt(o.driverName)+'</div>';
+  l+=o.isNP?'<div class="popup-amount popup-np">NP</div>':'<div class="popup-amount">\u20AC'+o.total.toFixed(2)+'</div>';
+  return l;
+}
+var mainMap=null,mainMapMarkers=[],zonePolygonLayers=[];
+function initMainMap(){
+  if(mainMap)return;
+  mainMap=L.map('mainMap',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(mainMap);
+  mainMap.on('click',function(){mainMap.scrollWheelZoom.enable();});
+  mainMap.on('mouseout',function(){mainMap.scrollWheelZoom.disable();});
+  // Zone polygons (toggleable)
+  ZONES.forEach(function(z){
+    var layer=L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:2,fillOpacity:.15}).addTo(mainMap);
+    layer.bindTooltip(z.name,{permanent:false,direction:'center'});
+    zonePolygonLayers.push(layer);
+  });
+  // Toggle zone polygons
+  document.getElementById('mapShowZones').addEventListener('change',function(){
+    var show=this.checked;
+    zonePolygonLayers.forEach(function(l){if(show)l.addTo(mainMap);else mainMap.removeLayer(l);});
+  });
+  // Period filter on map
+  document.querySelectorAll('input[name="mapPeriod"]').forEach(function(r){
+    r.addEventListener('change',function(){refreshMainMapMarkers();});
+  });
+}
+function refreshMainMapMarkers(){
+  if(!mainMap)return;
+  mainMapMarkers.forEach(function(m){mainMap.removeLayer(m);});mainMapMarkers.length=0;
+  var mapPeriod='all';
+  document.querySelectorAll('input[name="mapPeriod"]').forEach(function(r){if(r.checked)mapPeriod=r.value;});
+
   orders.forEach(function(o){
     if(!o.lat||!o.lng)return;
-    if(zoneFilter!=='TUTTI'){
-      if(zoneFilter==='NON ASSEGNATI'){if(o.zone)return;}
-      else{if(o.zone!==zoneFilter)return;}
-    }
+    // Period filter
+    if(mapPeriod!=='all'&&getTimePeriod(o)!==mapPeriod)return;
+
     var zc=o.zone?(ZONE_COLORS[o.zone]||'#4f8cff'):'#f87171';
-    var m=L.circleMarker([o.lat,o.lng],{radius:7,color:'#fff',weight:2,fillColor:zc,fillOpacity:.9}).addTo(map);
-    m.bindPopup(buildPopupContent(o),{maxWidth:300});
-    m._orderId=o.id;
-    // Click marker -> highlight row in table
-    m.on('click',function(){highlightOrderRow(o.id);});
-    arr.push(m);
+    var period=getTimePeriod(o);
+    // AM = circle, PM = diamond (rotated square)
+    var marker;
+    if(period==='pm'){
+      // Diamond marker for PM
+      marker=L.marker([o.lat,o.lng],{icon:L.divIcon({
+        className:'',
+        html:'<div style="width:12px;height:12px;background:'+zc+';transform:rotate(45deg);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>',
+        iconSize:[14,14],iconAnchor:[7,7]
+      })});
+    }else{
+      // Circle for AM
+      marker=L.circleMarker([o.lat,o.lng],{radius:7,color:'#fff',weight:2,fillColor:zc,fillOpacity:.9});
+    }
+    marker.addTo(mainMap);
+    marker.bindPopup(buildPopupContent(o),{maxWidth:300});
+    marker._orderId=o.id;
+    marker.on('click',function(){highlightOrderRow(o.id);});
+    mainMapMarkers.push(marker);
   });
 }
 
@@ -1394,16 +1459,12 @@ function highlightOrderRow(orderId){
 }
 
 function highlightOrderMarker(orderId){
-  // Flash the marker on all maps
-  [mapConsegneMarkers,mapZoneMarkers].forEach(function(arr){
-    arr.forEach(function(m){
-      if(m._orderId===orderId){
-        var origRadius=m.getRadius();
-        m.setRadius(14);m.setStyle({weight:4,color:'#2563eb'});
-        m.openPopup();
-        setTimeout(function(){m.setRadius(origRadius);m.setStyle({weight:2,color:'#fff'});},3000);
-      }
-    });
+  mainMapMarkers.forEach(function(m){
+    if(m._orderId===orderId){
+      m.openPopup();
+      if(m.setRadius){var origRadius=m.getRadius();m.setRadius(14);m.setStyle({weight:4,color:'#2563eb'});setTimeout(function(){m.setRadius(origRadius);m.setStyle({weight:2,color:'#fff'});},3000);}
+      else if(m._icon){m._icon.style.transform+=' scale(1.8)';m._icon.style.zIndex='9999';setTimeout(function(){m._icon.style.transform=m._icon.style.transform.replace(' scale(1.8)','');},3000);}
+    }
   });
 }
 
@@ -1446,22 +1507,16 @@ function renderAll(){
   }else{
     fb('zfGiri','giri');renderZones('zonesContainer',f,filters.giri);
   }
-  if(dualMode){fb('zfMap1L','map1L');fb('zfMap1R','map1R');renderZones('map1DualLeft',f,filters.map1L);renderZones('map1DualRight',f,filters.map1R);}
-  else{fb('zfMap1','map1');renderZones('map1Container',f,filters.map1);}
-  if(dualMode){
-    fb('zfMZL','mzL');fb('zfMZR','mzR');
-    renderZones('mzDualLeft',f,filters.mzL);renderZones('mzDualRight',f,filters.mzR);
-  }else{
-    fb('zfMZ','mz');renderZones('mzContainer',f,filters.mz);
-  }
+  // Mappa
+  if(dualMode){fb('zfMapL','map1L');fb('zfMapR','map1R');renderZones('mapDualLeft',f,filters.map1L);renderZones('mapDualRight',f,filters.map1R);}
+  else{fb('zfMap','map1');renderZones('mapContainer',f,filters.map1);}
   updateHeaderStats();
   restoreCollapseState();
-  if(mapConsegne)refreshMapMarkers(mapConsegne,mapConsegneMarkers,filters.map1);
-  if(mapZone)refreshMapMarkers(mapZone,mapZoneMarkers,dualMode?'TUTTI':filters.mz);
+  refreshMainMapMarkers();
 }
 
 // TABS + TOOLBAR
-document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});this.classList.add('active');document.getElementById('panel-'+this.getAttribute('data-tab')).classList.add('active');if(this.getAttribute('data-tab')==='mapConsegne'){initMapConsegne();setTimeout(function(){mapConsegne.invalidateSize();refreshMapMarkers(mapConsegne,mapConsegneMarkers);},100);}if(this.getAttribute('data-tab')==='mapZone'){initMapZone();setTimeout(function(){mapZone.invalidateSize();refreshMapMarkers(mapZone,mapZoneMarkers);},100);}});});
+document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});this.classList.add('active');document.getElementById('panel-'+this.getAttribute('data-tab')).classList.add('active');if(this.getAttribute('data-tab')==='mappa'){initMainMap();setTimeout(function(){mainMap.invalidateSize();refreshMainMapMarkers();},100);}});});
 document.getElementById('btnDual').addEventListener('click',function(){
   dualMode=!dualMode;
   this.classList.toggle('active',dualMode);
@@ -1625,7 +1680,7 @@ function exportExcel(){
   XLSX.writeFile(wb,'giri_'+new Date().toISOString().slice(0,10)+'.xlsx');
   showToast('Excel esportato');
 }
-document.getElementById('btnReset').addEventListener('click',function(){orders=[];customZones=[];splitOriginals={};document.getElementById('mainView').classList.remove('active');document.getElementById('uploadArea').style.display='';if(mapConsegne){mapConsegne.remove();mapConsegne=null;}if(mapZone){mapZone.remove();mapZone=null;}mapConsegneMarkers=[];mapZoneMarkers=[];});
+document.getElementById('btnReset').addEventListener('click',function(){orders=[];customZones=[];splitOriginals={};document.getElementById('mainView').classList.remove('active');document.getElementById('uploadArea').style.display='';if(mainMap){mainMap.remove();mainMap=null;}mainMapMarkers=[];zonePolygonLayers=[];});
 
 // Custom zones
 document.getElementById('btnAddZone').addEventListener('click',function(){
@@ -1712,11 +1767,15 @@ function parseDBOrders(dbOrders){
       var addr=typeof o.shipping_address==='string'?JSON.parse(o.shipping_address):o.shipping_address;
       if(addr){
         var parts=[];
-        if(addr.line1)parts.push(addr.line1);
-        if(addr.line2)parts.push(addr.line2);
-        if(addr.city)parts.push(addr.city);
-        if(addr.zip)parts.push(addr.zip);
+        if(addr.line1||addr.address||addr.street)parts.push(addr.line1||addr.address||addr.street);
+        if(addr.line2||addr.number)parts.push(addr.line2||addr.number);
+        if(addr.city||addr.locality)parts.push(addr.city||addr.locality);
+        if(addr.province||addr.state)parts.push('('+( addr.province||addr.state)+')');
+        if(addr.zip||addr.postalCode||addr.postal_code)parts.push(addr.zip||addr.postalCode||addr.postal_code);
         address=parts.join(', ')||'';
+        // Fallback: if address is too short, try formatted_address
+        if(address.length<10&&addr.formatted_address)address=addr.formatted_address;
+        if(address.length<10&&addr.full)address=addr.full;
         // GPS coordinates if available
         if(addr.latitude&&addr.longitude){lat=parseFloat(addr.latitude);lng=parseFloat(addr.longitude);}
         else if(addr.lat&&addr.lng){lat=parseFloat(addr.lat);lng=parseFloat(addr.lng);}
