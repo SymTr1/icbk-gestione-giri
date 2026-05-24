@@ -20,9 +20,37 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .upload-box:hover,.upload-box.dragover{border-color:var(--accent);background:var(--surface2);}
 .upload-box svg{width:48px;height:48px;color:var(--accent);margin-bottom:16px;}
 .upload-box h2{font-size:18px;margin-bottom:8px;}.upload-box p{color:var(--text2);font-size:14px;}
-.main{display:none;}.main.active{display:block;}
-.tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:45px;z-index:90;}
-.tab{padding:10px 20px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;user-select:none;}.tab:hover{color:var(--text);}.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.main{display:none;}.main.active{display:flex;height:calc(100vh - 45px);}
+/* Sidebar */
+.sidebar{width:180px;min-width:180px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;transition:width .2s,min-width .2s;}
+.sidebar.collapsed{width:48px;min-width:48px;}
+.sidebar-toggle{padding:10px 14px;cursor:pointer;border:none;background:none;text-align:left;font-size:16px;color:#666;border-bottom:1px solid var(--border);}
+.sidebar-toggle:hover{background:#f5f5f5;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;border-left:3px solid transparent;transition:all .15s;white-space:nowrap;overflow:hidden;}
+.nav-item:hover{background:#f5f5f5;color:var(--text);}
+.nav-item.active{color:var(--accent);background:#f0f6ff;border-left-color:var(--accent);font-weight:600;}
+.nav-item svg{width:18px;height:18px;flex-shrink:0;}
+.sidebar.collapsed .nav-label{display:none;}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;}
+/* Content area */
+.content-area{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.tab-panel{display:none;flex:1;overflow-y:auto;}.tab-panel.active{display:flex;flex-direction:column;}
+/* Routes */
+.routes-layout{display:flex;flex:1;overflow:hidden;}
+.routes-sidebar{width:380px;min-width:380px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:#fff;}
+.routes-sidebar-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;}
+.routes-list{flex:1;overflow-y:auto;}
+.routes-map{flex:1;position:relative;}
+#routeMap{width:100%;height:100%;}
+.route-order{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:12px;transition:background .1s;}
+.route-order:hover{background:#f0f7ff;}
+.route-order.highlighted{background:#dbeafe;outline:2px solid #2563eb;}
+.route-order .ro-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
+.route-order .ro-info{flex:1;min-width:0;}
+.route-order .ro-customer{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.route-order .ro-detail{font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.route-order .ro-time{font-size:10px;color:#999;white-space:nowrap;}
+.route-order .ro-products{font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .toolbar{display:flex;gap:10px;padding:10px 20px;flex-wrap:wrap;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);}
 .toolbar input[type="text"]{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;width:240px;}
 .btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;}.btn:hover{border-color:var(--accent);}.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}.btn-danger{background:var(--red);border-color:var(--red);color:#fff;}.btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
@@ -248,23 +276,55 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 </div>
 
 <div class="main" id="mainView">
-  <div class="tabs"><div class="tab active" data-tab="giri">Giri per Zona</div><div class="tab" data-tab="mappa">Mappa</div></div>
-  <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px">Corrieri: <select id="driverCount" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:12px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label><button class="btn" id="btnBalance">Bilancia</button><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn btn-danger" id="btnResetMods">Resetta Modifiche</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
-  <div class="tab-panel active" id="panel-giri">
-    <div class="single-view" id="giriSingle"><div class="zone-filter-bar" id="zfGiri"></div><div id="zonesContainer"></div></div>
-    <div class="dual-view" id="giriDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfGiriL"></div><div id="giriDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfGiriR"></div><div id="giriDualRight"></div></div></div></div>
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle" title="Menu">&#9776;</button>
+    <div class="nav-item active" data-page="giri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg><span class="nav-label">Giri per Zona</span></div>
+    <div class="nav-item" data-page="mappa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><path d="M8 2v16M16 6v16"/></svg><span class="nav-label">Mappa</span></div>
+    <div class="nav-item" data-page="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg><span class="nav-label">Routes</span></div>
   </div>
-  <div class="tab-panel" id="panel-mappa">
-    <div style="display:flex;gap:8px;padding:6px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center">
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="mapShowZones" checked> Zone</label>
-      <span style="border-left:1px solid #ddd;height:16px"></span>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="all" checked> Tutti</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="am"> Mattina</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="pm"> Pomeriggio</label>
+  <!-- CONTENT -->
+  <div class="content-area">
+    <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px">Corrieri: <select id="driverCount" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:12px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label><button class="btn" id="btnBalance">Bilancia</button><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn btn-danger" id="btnResetMods">Resetta Modifiche</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
+
+    <!-- PAGE: Giri per Zona -->
+    <div class="tab-panel active" id="panel-giri">
+      <div class="single-view" id="giriSingle"><div class="zone-filter-bar" id="zfGiri"></div><div id="zonesContainer"></div></div>
+      <div class="dual-view" id="giriDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfGiriL"></div><div id="giriDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfGiriR"></div><div id="giriDualRight"></div></div></div></div>
     </div>
-    <div class="map-wrapper"><div id="mainMap"></div></div>
-    <div class="single-view" id="mapSingle"><div class="zone-filter-bar" id="zfMap"></div><div id="mapContainer"></div></div>
-    <div class="dual-view" id="mapDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMapL"></div><div id="mapDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMapR"></div><div id="mapDualRight"></div></div></div></div>
+
+    <!-- PAGE: Mappa -->
+    <div class="tab-panel" id="panel-mappa">
+      <div style="display:flex;gap:8px;padding:6px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center">
+        <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="mapShowZones" checked> Zone</label>
+        <span style="border-left:1px solid #ddd;height:16px"></span>
+        <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="all" checked> Tutti</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="am"> Mattina</label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="mapPeriod" value="pm"> Pomeriggio</label>
+      </div>
+      <div class="map-wrapper" style="flex:1;height:auto;min-height:400px"><div id="mainMap"></div></div>
+      <div class="single-view" id="mapSingle"><div class="zone-filter-bar" id="zfMap"></div><div id="mapContainer"></div></div>
+      <div class="dual-view" id="mapDual"><div class="split-container"><div class="split-left"><div class="zone-filter-bar" id="zfMapL"></div><div id="mapDualLeft"></div></div><div class="split-right"><div class="zone-filter-bar" id="zfMapR"></div><div id="mapDualRight"></div></div></div></div>
+    </div>
+
+    <!-- PAGE: Routes -->
+    <div class="tab-panel" id="panel-routes">
+      <div class="routes-layout">
+        <div class="routes-sidebar">
+          <div class="routes-sidebar-header">
+            <select id="routeZoneSelect" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px"></select>
+            <div style="display:flex;gap:6px">
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="routePeriod" value="all" checked> Tutti</label>
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="routePeriod" value="am"> AM</label>
+              <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="routePeriod" value="pm"> PM</label>
+              <span style="margin-left:auto;font-size:11px;color:#666" id="routeStats"></span>
+            </div>
+          </div>
+          <div class="routes-list" id="routesList"></div>
+        </div>
+        <div class="routes-map"><div id="routeMap"></div></div>
+      </div>
+    </div>
   </div>
 </div>
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div class="loading-text" id="loadingText">Geocoding indirizzi...</div><div class="loading-progress" id="loadingProgress"></div></div>
@@ -1517,7 +1577,20 @@ function renderAll(){
 }
 
 // TABS + TOOLBAR
-document.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});this.classList.add('active');document.getElementById('panel-'+this.getAttribute('data-tab')).classList.add('active');if(this.getAttribute('data-tab')==='mappa'){initMainMap();setTimeout(function(){mainMap.invalidateSize();refreshMainMapMarkers();},100);}});});
+// Sidebar navigation
+document.querySelectorAll('.nav-item').forEach(function(nav){nav.addEventListener('click',function(){
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  this.classList.add('active');
+  var page=this.getAttribute('data-page');
+  document.getElementById('panel-'+page).classList.add('active');
+  if(page==='mappa'){initMainMap();setTimeout(function(){mainMap.invalidateSize();refreshMainMapMarkers();},100);}
+  if(page==='routes'){initRouteMap();setTimeout(function(){routeMap.invalidateSize();renderRoute();},100);}
+});});
+document.getElementById('sidebarToggle').addEventListener('click',function(){document.getElementById('sidebar').classList.toggle('collapsed');
+  // Invalidate maps after sidebar resize
+  setTimeout(function(){if(mainMap)mainMap.invalidateSize();if(routeMap)routeMap.invalidateSize();},300);
+});
 document.getElementById('btnDual').addEventListener('click',function(){
   dualMode=!dualMode;
   this.classList.toggle('active',dualMode);
@@ -1849,6 +1922,154 @@ function startGeocoding(){
 }
 
 function processFile(file){file.text().then(function(text){orders=parseCSV(text);startGeocoding();});}
+
+// ============================================================
+// ROUTES PAGE
+// ============================================================
+var routeMap=null,routeMarkers=[],routeZonePolygons=[];
+
+function initRouteMap(){
+  if(routeMap)return;
+  routeMap=L.map('routeMap',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(routeMap);
+  routeMap.on('click',function(){routeMap.scrollWheelZoom.enable();});
+  routeMap.on('mouseout',function(){routeMap.scrollWheelZoom.disable();});
+  // Draw all zone polygons (light)
+  ZONES.forEach(function(z){
+    var layer=L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:'#ccc',weight:1,fillOpacity:.03}).addTo(routeMap);
+    layer.bindTooltip(z.name,{permanent:false,direction:'center'});
+    routeZonePolygons.push({name:z.name,layer:layer,color:z.color});
+  });
+  // Populate zone selector
+  updateRouteZoneSelect();
+  document.getElementById('routeZoneSelect').addEventListener('change',function(){renderRoute();});
+  document.querySelectorAll('input[name="routePeriod"]').forEach(function(r){r.addEventListener('change',function(){renderRoute();});});
+}
+
+function updateRouteZoneSelect(){
+  var sel=document.getElementById('routeZoneSelect');
+  if(!sel)return;
+  while(sel.firstChild)sel.removeChild(sel.firstChild);
+  // Build zone list with counts
+  var grouped={};var unCount=0;
+  orders.forEach(function(o){
+    if(!o.zone){unCount++;return;}
+    if(!grouped[o.zone])grouped[o.zone]=0;
+    grouped[o.zone]++;
+  });
+  // Add zones with orders
+  ZONE_DISPLAY_ORDER.forEach(function(zn){
+    if(grouped[zn]){var opt=document.createElement('option');opt.value=zn;opt.textContent=zn+' ('+grouped[zn]+')';sel.appendChild(opt);}
+  });
+  customZones.forEach(function(zn){
+    if(grouped[zn]){var opt=document.createElement('option');opt.value=zn;opt.textContent=zn+' ('+grouped[zn]+')';sel.appendChild(opt);}
+  });
+  if(unCount>0){var opt=document.createElement('option');opt.value='NON ASSEGNATI';opt.textContent='NON ASSEGNATI ('+unCount+')';sel.appendChild(opt);}
+  if(grouped[SEDE_ZONE]){var opt=document.createElement('option');opt.value=SEDE_ZONE;opt.textContent='RITIRO ('+grouped[SEDE_ZONE]+')';sel.appendChild(opt);}
+}
+
+function renderRoute(){
+  if(!routeMap)return;
+  var selectedZone=document.getElementById('routeZoneSelect').value;
+  var rPeriod='all';
+  document.querySelectorAll('input[name="routePeriod"]').forEach(function(r){if(r.checked)rPeriod=r.value;});
+
+  // Highlight selected zone polygon
+  routeZonePolygons.forEach(function(zp){
+    if(zp.name===selectedZone){zp.layer.setStyle({color:zp.color,weight:3,fillOpacity:.15});}
+    else{zp.layer.setStyle({color:'#ccc',weight:1,fillOpacity:.03});}
+  });
+
+  // Get orders for selected zone
+  var zoneOrders=orders.filter(function(o){
+    if(selectedZone==='NON ASSEGNATI')return!o.zone;
+    return o.zone===selectedZone;
+  });
+  // Filter by period
+  if(rPeriod!=='all')zoneOrders=zoneOrders.filter(function(o){return getTimePeriod(o)===rPeriod;});
+  // Sort by timeslot
+  zoneOrders.sort(function(a,b){return(a.timeslot||'').localeCompare(b.timeslot||'');});
+
+  // Stats
+  var cargo=calcCargo(zoneOrders);
+  var statsEl=document.getElementById('routeStats');
+  if(statsEl)statsEl.textContent=zoneOrders.length+' cons | '+(cargo.totalColli+cargo.totalPoli)+' colli | '+cargo.totalKg+'kg';
+
+  // Clear markers
+  routeMarkers.forEach(function(m){routeMap.removeLayer(m);});routeMarkers.length=0;
+
+  // Add all OTHER orders as gray dots
+  orders.forEach(function(o){
+    if(!o.lat||!o.lng)return;
+    var isSelected=(selectedZone==='NON ASSEGNATI'?!o.zone:o.zone===selectedZone);
+    if(isSelected)return; // skip, will add colored below
+    var m=L.circleMarker([o.lat,o.lng],{radius:4,color:'#ccc',weight:1,fillColor:'#ddd',fillOpacity:.5}).addTo(routeMap);
+    m.bindPopup(buildPopupContent(o),{maxWidth:300});
+    m._orderId=o.id;
+    m.on('click',function(){highlightRouteOrder(o.id);});
+    routeMarkers.push(m);
+  });
+
+  // Add selected zone orders as colored markers with numbers
+  var zoneColor=ZONE_COLORS[selectedZone]||'#2563eb';
+  zoneOrders.forEach(function(o,idx){
+    if(!o.lat||!o.lng)return;
+    var period=getTimePeriod(o);
+    var marker;
+    if(period==='pm'){
+      marker=L.marker([o.lat,o.lng],{icon:L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:'+zoneColor+';transform:rotate(45deg);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>',iconSize:[16,16],iconAnchor:[8,8]})});
+    }else{
+      marker=L.circleMarker([o.lat,o.lng],{radius:8,color:'#fff',weight:2,fillColor:zoneColor,fillOpacity:.9});
+    }
+    marker.addTo(routeMap);
+    marker.bindPopup('<b>#'+(idx+1)+'</b> '+buildPopupContent(o),{maxWidth:300});
+    marker._orderId=o.id;
+    marker.on('click',function(){highlightRouteOrder(o.id);});
+    routeMarkers.push(marker);
+  });
+
+  // Build order list
+  var list=document.getElementById('routesList');
+  while(list.firstChild)list.removeChild(list.firstChild);
+  zoneOrders.forEach(function(o,idx){
+    var row=el('div',{className:'route-order','data-order-id':o.id,onClick:function(){
+      // Highlight on map
+      routeMarkers.forEach(function(m){
+        if(m._orderId===o.id){m.openPopup();if(m.setRadius)m.setRadius(14);else if(m._icon)m._icon.style.transform+=' scale(1.5)';}
+        else{if(m.setRadius&&m.options.fillColor===zoneColor)m.setRadius(8);}
+      });
+      // Highlight this row
+      list.querySelectorAll('.route-order').forEach(function(r){r.classList.remove('highlighted');});
+      row.classList.add('highlighted');
+      setTimeout(function(){row.classList.remove('highlighted');routeMarkers.forEach(function(m){if(m._orderId===o.id&&m.setRadius)m.setRadius(8);});},4000);
+    }});
+    var period=getTimePeriod(o);
+    var numEl=el('div',{className:'ro-num',style:{background:zoneColor},textContent:String(idx+1)});
+    row.appendChild(numEl);
+    var info=el('div',{className:'ro-info'});
+    var custLine=el('div',{className:'ro-customer'});
+    custLine.appendChild(el('span',{className:'ts-badge '+(period==='pm'?'pm':'am'),textContent:period==='pm'?'PM':'AM',style:{marginRight:'4px'}}));
+    if(o.splitPart)custLine.appendChild(el('span',{className:'split-badge',textContent:o.splitPart+'/'+o.splitTotal}));
+    custLine.appendChild(document.createTextNode(o.customer));
+    info.appendChild(custLine);
+    info.appendChild(el('div',{className:'ro-detail',textContent:o.address}));
+    var prodStr=o.products.map(function(p){return'['+p.quantity+'x'+p.abbr+']';}).join('+');
+    info.appendChild(el('div',{className:'ro-products',textContent:prodStr}));
+    row.appendChild(info);
+    var timeStr=o.timeslot?(o.timeslot.match(/\d{1,2}[:.]\d{2}\s*[/-]\s*\d{1,2}[:.]\d{2}/)||[''])[0]:'';
+    row.appendChild(el('div',{className:'ro-time',textContent:timeStr||'-'}));
+    list.appendChild(row);
+  });
+}
+
+function highlightRouteOrder(orderId){
+  var list=document.getElementById('routesList');
+  if(!list)return;
+  list.querySelectorAll('.route-order').forEach(function(r){r.classList.remove('highlighted');});
+  var row=list.querySelector('.route-order[data-order-id="'+orderId+'"]');
+  if(row){row.classList.add('highlighted');row.scrollIntoView({behavior:'smooth',block:'center'});}
+  setTimeout(function(){if(row)row.classList.remove('highlighted');},4000);
+}
 </script>
 </body>
 </html>
