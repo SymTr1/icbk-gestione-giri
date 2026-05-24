@@ -1770,6 +1770,9 @@ document.getElementById('btnDual').addEventListener('click',function(){
   this.removeAttribute('style');
   this.setAttribute('style','padding:3px 8px;font-size:10px'+(dualMode?';background:var(--accent);color:#fff;border-color:var(--accent)':''));
   document.getElementById('panel-giri').classList.toggle('dual-mode',dualMode);
+  // Also toggle map split view
+  if(dualMode&&!mapSplitMode){document.getElementById('btnMapSplit').click();}
+  else if(!dualMode&&mapSplitMode){document.getElementById('btnMapSplit').click();}
   renderAll();
 });
 document.getElementById('searchInput').addEventListener('input',function(){renderAll();});
@@ -2088,10 +2091,11 @@ function startGeocoding(){
     }
     document.getElementById('loadingProgress').textContent=(idx+1)+'/'+total;
     var o=orders[idx];
-    if(o.isSede||o.lat){idx++;nextOrder();return;} // skip if already has coords (from DB GPS)
+    if(o.isSede){idx++;nextOrder();return;} // skip sede entirely
+    if(o.lat){idx++;nextOrder();return;} // skip if already has coords (from DB GPS)
     var ck=o.address.toLowerCase().trim();
-    if(geocodeCache[ck]){var cached=geocodeCache[ck];o.lat=cached.lat;o.lng=cached.lng;o.zone=findZone(cached.lng,cached.lat);idx++;nextOrder();return;}
-    geocodeNominatim(o.address).then(function(r){if(r){o.lat=r.lat;o.lng=r.lng;o.zone=findZone(r.lng,r.lat);geocodeCache[ck]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}else failedGeo.push(o);idx++;setTimeout(nextOrder,1100);});
+    if(geocodeCache[ck]){var cached=geocodeCache[ck];o.lat=cached.lat;o.lng=cached.lng;if(!o.isSede)o.zone=findZone(cached.lng,cached.lat);idx++;nextOrder();return;}
+    geocodeNominatim(o.address).then(function(r){if(r){o.lat=r.lat;o.lng=r.lng;if(!o.isSede)o.zone=findZone(r.lng,r.lat);geocodeCache[ck]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}else failedGeo.push(o);idx++;setTimeout(nextOrder,1100);});
   }
   nextOrder();
 }
