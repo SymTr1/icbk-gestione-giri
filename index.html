@@ -1767,7 +1767,9 @@ function renderMapSplit(){
 }
 document.getElementById('btnDual').addEventListener('click',function(){
   dualMode=!dualMode;
-  this.classList.toggle('active',dualMode);
+  // Clear all inline styles and toggle class
+  this.removeAttribute('style');
+  this.setAttribute('style','padding:3px 8px;font-size:10px'+(dualMode?';background:var(--accent);color:#fff;border-color:var(--accent)':''));
   document.getElementById('mainView').classList.toggle('dual-mode',dualMode);
   renderAll();
 });
