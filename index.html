@@ -60,6 +60,10 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .ro-eta.late{color:#dc2626;font-weight:600;}
 .ro-slot-edit{display:flex;gap:2px;align-items:center;font-size:10px;}
 .ro-slot-edit input[type="time"]{padding:1px 3px;border:1px solid #ddd;border-radius:3px;font-size:10px;width:62px;}
+.route-order[draggable="true"]{cursor:grab;}
+.route-order.dragging{opacity:.3;background:#f0f0f0;}
+.route-order.drag-over-top{border-top:2px solid var(--accent);}
+.route-order.drag-over-bottom{border-bottom:2px solid var(--accent);}
 .route-stats-item{display:inline-flex;gap:3px;align-items:center;white-space:nowrap;}
 .route-stats-item strong{color:#1a1a1a;}
 .toolbar{display:flex;gap:10px;padding:10px 20px;flex-wrap:wrap;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);}
@@ -337,6 +341,10 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
               <input type="text" id="routeDeparture" value="Via Eugenio Montale 29, Opera (MI)" style="flex:1;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;color:#666">
               <span style="color:#666">ore</span>
               <input type="time" id="routeDepartureTime" value="08:45" style="padding:3px 4px;border:1px solid #ddd;border-radius:4px;font-size:11px;width:70px">
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button class="btn btn-primary" id="btnRouting" style="padding:4px 14px;font-size:11px">Routing OSRM</button>
+              <span id="routingCooldown" style="font-size:10px;color:#999;display:none"></span>
             </div>
             <div id="routeStats" style="font-size:11px;color:#333;padding:4px 0;border-top:1px solid #eee;display:flex;gap:8px;flex-wrap:wrap"></div>
           </div>
@@ -1965,10 +1973,11 @@ function initRouteMap(){
   });
   // Populate zone selector
   updateRouteZoneSelect();
-  document.getElementById('routeZoneSelect').addEventListener('change',function(){renderRoute();});
-  document.querySelectorAll('input[name="routePeriod"]').forEach(function(r){r.addEventListener('change',function(){renderRoute();});});
+  document.getElementById('routeZoneSelect').addEventListener('change',function(){currentRouteOrder=null;renderRoute();});
+  document.querySelectorAll('input[name="routePeriod"]').forEach(function(r){r.addEventListener('change',function(){currentRouteOrder=null;renderRoute();});});
   document.getElementById('routeDepartureTime').addEventListener('change',function(){renderRoute();});
   document.getElementById('routeShowZones').addEventListener('change',function(){renderRoute();});
+  document.getElementById('btnRouting').addEventListener('click',function(){runOSRMRouting();});
 }
 
 function updateRouteZoneSelect(){
@@ -1993,6 +2002,10 @@ function updateRouteZoneSelect(){
   if(grouped[SEDE_ZONE]){var opt=document.createElement('option');opt.value=SEDE_ZONE;opt.textContent='RITIRO ('+grouped[SEDE_ZONE]+')';sel.appendChild(opt);}
 }
 
+var currentRouteOrder=null; // array of order ids in manual order
+var osrmCooldownUntil=0;
+var TRAFFIC_FACTOR=1.5; // +50%
+
 // Parse timeslot string to {start:minutes, end:minutes} from midnight
 function parseSlotTimes(order){
   var ts=order._customSlot||order.timeslot||'';
@@ -2010,13 +2023,45 @@ function calcUnloadMin(order){
 
 function minutesToHHMM(m){var h=Math.floor(m/60);var mm=Math.round(m%60);return(h<10?'0':'')+h+':'+(mm<10?'0':'')+mm;}
 
-function renderRoute(){
-  if(!routeMap)return;
+function getRouteOrders(){
   var selectedZone=document.getElementById('routeZoneSelect').value;
   var rPeriod='all';
   document.querySelectorAll('input[name="routePeriod"]').forEach(function(r){if(r.checked)rPeriod=r.value;});
+  var zoneOrders=orders.filter(function(o){
+    if(selectedZone==='NON ASSEGNATI')return!o.zone;
+    return o.zone===selectedZone;
+  });
+  if(rPeriod!=='all')zoneOrders=zoneOrders.filter(function(o){return getTimePeriod(o)===rPeriod;});
+  // Apply manual order if exists
+  if(currentRouteOrder&&currentRouteOrder.length>0){
+    var orderMap={};zoneOrders.forEach(function(o){orderMap[o.id]=o;});
+    var ordered=[];
+    currentRouteOrder.forEach(function(id){if(orderMap[id]){ordered.push(orderMap[id]);delete orderMap[id];}});
+    Object.keys(orderMap).forEach(function(id){ordered.push(orderMap[id]);});
+    return ordered;
+  }
+  // Default: sort by timeslot
+  zoneOrders.sort(function(a,b){return(a.timeslot||'').localeCompare(b.timeslot||'');});
+  return zoneOrders;
+}
 
-  // Zone polygons toggle
+function getDeparture(){
+  var depLat=45.3833,depLng=9.2167;
+  var depCache=geocodeCache[(document.getElementById('routeDeparture').value||'').toLowerCase().trim()];
+  if(depCache){depLat=depCache.lat;depLng=depCache.lng;}
+  var departureMinutes=8*60+45;
+  var depTimeVal=document.getElementById('routeDepartureTime').value;
+  if(depTimeVal){var dp=depTimeVal.split(':');departureMinutes=parseInt(dp[0])*60+parseInt(dp[1]);}
+  return{lat:depLat,lng:depLng,time:departureMinutes};
+}
+
+function renderRoute(){
+  if(!routeMap)return;
+  var selectedZone=document.getElementById('routeZoneSelect').value;
+  var zoneColor=ZONE_COLORS[selectedZone]||'#2563eb';
+  var dep=getDeparture();
+
+  // Zone polygons
   var showZones=document.getElementById('routeShowZones').checked;
   routeZonePolygons.forEach(function(zp){
     if(!showZones){routeMap.removeLayer(zp.layer);return;}
@@ -2024,29 +2069,10 @@ function renderRoute(){
     zp.layer.setStyle(zp.name===selectedZone?{color:zp.color,weight:3,fillOpacity:.15}:{color:'#ccc',weight:1,fillOpacity:.03});
   });
 
-  // Get orders
-  var zoneOrders=orders.filter(function(o){
-    if(selectedZone==='NON ASSEGNATI')return!o.zone;
-    return o.zone===selectedZone;
-  });
-  if(rPeriod!=='all')zoneOrders=zoneOrders.filter(function(o){return getTimePeriod(o)===rPeriod;});
-  var geoOrders=zoneOrders.filter(function(o){return o.lat&&o.lng;});
-
-  var statsEl=document.getElementById('routeStats');
-  var zoneColor=ZONE_COLORS[selectedZone]||'#2563eb';
-
   // Clear
   routeMarkers.forEach(function(m){routeMap.removeLayer(m);});routeMarkers.length=0;
   if(window._routeLines){window._routeLines.forEach(function(l){routeMap.removeLayer(l);});}
   window._routeLines=[];
-
-  // Departure
-  var depLat=45.3833,depLng=9.2167;
-  var depCache=geocodeCache[(document.getElementById('routeDeparture').value||'').toLowerCase().trim()];
-  if(depCache){depLat=depCache.lat;depLng=depCache.lng;}
-  var departureMinutes=8*60+45;
-  var depTimeVal=document.getElementById('routeDepartureTime').value;
-  if(depTimeVal){var dp=depTimeVal.split(':');departureMinutes=parseInt(dp[0])*60+parseInt(dp[1]);}
 
   // Gray dots for other orders
   orders.forEach(function(o){
@@ -2058,130 +2084,36 @@ function renderRoute(){
     m.on('click',function(){highlightRouteOrder(o.id);});routeMarkers.push(m);
   });
 
-  if(geoOrders.length===0){
-    while(statsEl.firstChild)statsEl.removeChild(statsEl.firstChild);
-    statsEl.textContent='Nessun ordine con coordinate';
-    buildRouteList([],zoneColor,departureMinutes,[]);return;
-  }
+  var routeOrders=getRouteOrders();
 
-  // Group by timeslot, sort slots
-  var slotGroups={};
-  geoOrders.forEach(function(o){
-    var s=parseSlotTimes(o);
-    var key=s.start+'-'+s.end;
-    if(!slotGroups[key])slotGroups[key]={start:s.start,end:s.end,orders:[]};
-    slotGroups[key].orders.push(o);
-  });
-  var sortedSlots=Object.values(slotGroups).sort(function(a,b){return a.start-b.start;});
-
-  // Sequential OSRM routing: slot by slot
-  while(statsEl.firstChild)statsEl.removeChild(statsEl.firstChild);
-  statsEl.textContent='Calcolo percorso...';
-
-  var allLegs=[];// {orders:[], distance:m, duration:s, geometry:geojson}
-  var currentLat=depLat,currentLng=depLng;
-  var slotIdx=0;
-
-  function routeNextSlot(){
-    if(slotIdx>=sortedSlots.length){
-      // All slots routed - render everything
-      finishRouting(allLegs,zoneColor,departureMinutes,geoOrders,zoneOrders);
-      return;
+  // Calculate ETAs based on current order (straight-line estimate)
+  var etaPerOrder={};
+  var currentTime=dep.time;
+  var prevLat=dep.lat,prevLng=dep.lng;
+  routeOrders.forEach(function(o){
+    if(o.lat&&o.lng){
+      var dist=distanceBetween(prevLat,prevLng,o.lat,o.lng);
+      var driveMin=dist*200; // rough: 0.01 deg ~2km ~3min
+      currentTime+=driveMin*TRAFFIC_FACTOR;
+      prevLat=o.lat;prevLng=o.lng;
     }
-    var slot=sortedSlots[slotIdx];
-    var slotOrders=slot.orders.filter(function(o){return o.lat&&o.lng;});
-    if(slotOrders.length===0){slotIdx++;routeNextSlot();return;}
-
-    // Build coords: current position + slot orders
-    var coords=currentLng+','+currentLat;
-    slotOrders.forEach(function(o){coords+=';'+o.lng+','+o.lat;});
-
-    fetch('https://router.project-osrm.org/trip/v1/driving/'+coords+'?source=first&roundtrip=false&overview=full&geometries=geojson')
-      .then(function(r){return r.json();})
-      .then(function(data){
-        var optimized=[];
-        if(data.code==='Ok'&&data.trips&&data.trips.length>0){
-          var trip=data.trips[0];
-          // Reorder by waypoint_index
-          var wpOrder=data.waypoints.slice(1).sort(function(a,b){return a.waypoint_index-b.waypoint_index;});
-          wpOrder.forEach(function(wp){
-            var i=data.waypoints.indexOf(wp)-1;
-            if(i>=0&&i<slotOrders.length)optimized.push(slotOrders[i]);
-          });
-          if(optimized.length!==slotOrders.length)optimized=slotOrders;
-          allLegs.push({orders:optimized,distance:trip.distance,duration:trip.duration,geometry:trip.geometry,slot:slot});
-          // Update current position to last stop
-          var last=optimized[optimized.length-1];
-          currentLat=last.lat;currentLng=last.lng;
-        }else{
-          allLegs.push({orders:slotOrders,distance:0,duration:0,geometry:null,slot:slot});
-          var last2=slotOrders[slotOrders.length-1];
-          currentLat=last2.lat;currentLng=last2.lng;
-        }
-        slotIdx++;
-        setTimeout(routeNextSlot,300);// small delay between OSRM calls
-      })
-      .catch(function(){
-        allLegs.push({orders:slotOrders,distance:0,duration:0,geometry:null,slot:slot});
-        slotIdx++;setTimeout(routeNextSlot,300);
-      });
-  }
-  routeNextSlot();
-}
-
-function finishRouting(legs,zoneColor,departureMinutes,geoOrders,allZoneOrders){
-  // Flatten orders in routed sequence
-  var finalOrders=[];
-  legs.forEach(function(leg){leg.orders.forEach(function(o){finalOrders.push(o);});});
-  // Add non-geo orders at end
-  allZoneOrders.filter(function(o){return!o.lat||!o.lng;}).forEach(function(o){finalOrders.push(o);});
-
-  // Calculate times
-  var totalDriveMin=0,totalUnloadMin=0;
-  legs.forEach(function(leg){totalDriveMin+=leg.duration/60;});
-  finalOrders.forEach(function(o){totalUnloadMin+=calcUnloadMin(o);});
-  var trafficMin=Math.round(totalDriveMin*0.1);
-  var totalMin=Math.round(totalDriveMin)+trafficMin+totalUnloadMin;
-  var totalDistKm=0;
-  legs.forEach(function(leg){totalDistKm+=leg.distance/1000;});
-  totalDistKm=Math.round(totalDistKm*10)/10;
-
-  // Stats
-  var statsEl=document.getElementById('routeStats');
-  while(statsEl.firstChild)statsEl.removeChild(statsEl.firstChild);
-  [{l:'Guida',v:Math.round(totalDriveMin)+' min'},{l:'Traffico',v:'+'+trafficMin+' min'},{l:'Scarico',v:totalUnloadMin+' min'},{l:'Totale',v:totalMin+' min'},{l:'Distanza',v:totalDistKm+' km'},{l:'Cons',v:finalOrders.length}]
-    .forEach(function(s){var sp=el('span',{className:'route-stats-item'});sp.appendChild(el('strong',{},s.v));sp.appendChild(document.createTextNode(' '+s.l));statsEl.appendChild(sp);});
+    var slot=parseSlotTimes(o);
+    etaPerOrder[o.id]={eta:currentTime,slot:slot};
+    currentTime+=calcUnloadMin(o);
+  });
 
   // Departure marker
-  var depLat=45.3833,depLng=9.2167;
-  var depCache=geocodeCache[(document.getElementById('routeDeparture').value||'').toLowerCase().trim()];
-  if(depCache){depLat=depCache.lat;depLng=depCache.lng;}
-  var depM=L.circleMarker([depLat,depLng],{radius:10,color:'#222',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(routeMap);
-  depM.bindTooltip('PARTENZA '+minutesToHHMM(departureMinutes),{permanent:true,direction:'top',offset:[0,-12]});
+  var depM=L.circleMarker([dep.lat,dep.lng],{radius:10,color:'#222',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(routeMap);
+  depM.bindTooltip('PARTENZA '+minutesToHHMM(dep.time),{permanent:true,direction:'top',offset:[0,-12]});
   routeMarkers.push(depM);
 
-  // Draw route lines (black)
-  legs.forEach(function(leg){
-    if(leg.geometry){
-      var line=L.geoJSON(leg.geometry,{style:{color:'#222',weight:3,opacity:.8}}).addTo(routeMap);
-      window._routeLines.push(line);
-    }
-  });
-
-  // Calculate ETA per stop
-  var currentTime=departureMinutes;
-  var etaPerOrder={};
-  legs.forEach(function(leg){
-    var legDrivePerStop=leg.orders.length>0?(leg.duration/60)/leg.orders.length:0;
-    leg.orders.forEach(function(o,i){
-      currentTime+=legDrivePerStop*(1.1);// +10% traffic
-      etaPerOrder[o.id]={eta:currentTime,slot:leg.slot};
-      currentTime+=calcUnloadMin(o);
-    });
-  });
+  // Draw straight-line route
+  var pts=[[dep.lat,dep.lng]];
+  routeOrders.forEach(function(o){if(o.lat&&o.lng)pts.push([o.lat,o.lng]);});
+  if(pts.length>1){var line=L.polyline(pts,{color:'#222',weight:2,opacity:.4,dashArray:'6 4'}).addTo(routeMap);window._routeLines=[line];}
 
   // Numbered markers
-  finalOrders.forEach(function(o,idx){
+  routeOrders.forEach(function(o,idx){
     if(!o.lat||!o.lng)return;
     var period=getTimePeriod(o);
     var isLate=etaPerOrder[o.id]&&etaPerOrder[o.id].eta>etaPerOrder[o.id].slot.end;
@@ -2195,31 +2127,193 @@ function finishRouting(legs,zoneColor,departureMinutes,geoOrders,allZoneOrders){
   });
 
   // Fit bounds
-  var allPts=[[depLat,depLng]];finalOrders.forEach(function(o){if(o.lat&&o.lng)allPts.push([o.lat,o.lng]);});
-  if(allPts.length>1)routeMap.fitBounds(allPts,{padding:[30,30]});
+  if(pts.length>1)routeMap.fitBounds(pts,{padding:[30,30]});
 
-  // Build list
-  buildRouteList(finalOrders,zoneColor,departureMinutes,etaPerOrder);
+  // Stats (estimated without OSRM)
+  var totalUnload=0;routeOrders.forEach(function(o){totalUnload+=calcUnloadMin(o);});
+  var statsEl=document.getElementById('routeStats');
+  while(statsEl.firstChild)statsEl.removeChild(statsEl.firstChild);
+  statsEl.appendChild(el('span',{className:'route-stats-item',textContent:routeOrders.length+' cons'}));
+  statsEl.appendChild(el('span',{className:'route-stats-item',textContent:'Scarico: '+totalUnload+' min'}));
+  statsEl.appendChild(el('span',{style:{fontSize:'10px',color:'#999'},textContent:'Premi "Routing OSRM" per calcolo percorso reale'}));
+
+  // Build list with drag & drop
+  buildRouteList(routeOrders,zoneColor,etaPerOrder);
 }
 
-function buildRouteList(orderedList,zoneColor,departureMinutes,etaPerOrder){
+// OSRM routing on demand
+function runOSRMRouting(){
+  var now=Date.now();
+  if(now<osrmCooldownUntil){
+    var secLeft=Math.ceil((osrmCooldownUntil-now)/1000);
+    showToast('Attendi '+secLeft+'s prima del prossimo routing');return;
+  }
+
+  var routeOrders=getRouteOrders();
+  var geoOrders=routeOrders.filter(function(o){return o.lat&&o.lng;});
+  if(geoOrders.length<2){showToast('Servono almeno 2 consegne con coordinate');return;}
+
+  var dep=getDeparture();
+  var zoneColor=ZONE_COLORS[document.getElementById('routeZoneSelect').value]||'#2563eb';
+  var statsEl=document.getElementById('routeStats');
+  while(statsEl.firstChild)statsEl.removeChild(statsEl.firstChild);
+  statsEl.textContent='Calcolo OSRM...';
+
+  // Group by timeslot
+  var slotGroups={};
+  geoOrders.forEach(function(o){
+    var s=parseSlotTimes(o);var key=s.start+'-'+s.end;
+    if(!slotGroups[key])slotGroups[key]={start:s.start,end:s.end,orders:[]};
+    slotGroups[key].orders.push(o);
+  });
+  var sortedSlots=Object.values(slotGroups).sort(function(a,b){return a.start-b.start;});
+
+  var allLegs=[],curLat=dep.lat,curLng=dep.lng,slotIdx=0;
+
+  function nextSlot(){
+    if(slotIdx>=sortedSlots.length){applyOSRMResult(allLegs,dep,zoneColor,routeOrders);return;}
+    var slot=sortedSlots[slotIdx];
+    var so=slot.orders.filter(function(o){return o.lat&&o.lng;});
+    if(so.length===0){slotIdx++;nextSlot();return;}
+    var coords=curLng+','+curLat;so.forEach(function(o){coords+=';'+o.lng+','+o.lat;});
+    fetch('https://router.project-osrm.org/trip/v1/driving/'+coords+'?source=first&roundtrip=false&overview=full&geometries=geojson')
+      .then(function(r){return r.json();}).then(function(data){
+        if(data.code==='Ok'&&data.trips&&data.trips[0]){
+          var trip=data.trips[0];
+          var optimized=[];
+          data.waypoints.slice(1).sort(function(a,b){return a.waypoint_index-b.waypoint_index;}).forEach(function(wp){var i=data.waypoints.indexOf(wp)-1;if(i>=0&&i<so.length)optimized.push(so[i]);});
+          if(optimized.length!==so.length)optimized=so;
+          allLegs.push({orders:optimized,distance:trip.distance,duration:trip.duration,geometry:trip.geometry,slot:slot});
+          var last=optimized[optimized.length-1];curLat=last.lat;curLng=last.lng;
+        }else{allLegs.push({orders:so,distance:0,duration:0,geometry:null,slot:slot});var l2=so[so.length-1];curLat=l2.lat;curLng=l2.lng;}
+        slotIdx++;setTimeout(nextSlot,300);
+      }).catch(function(){allLegs.push({orders:so,distance:0,duration:0,geometry:null,slot:slot});slotIdx++;setTimeout(nextSlot,300);});
+  }
+  nextSlot();
+
+  // Cooldown
+  osrmCooldownUntil=Date.now()+5000;
+  var btn=document.getElementById('btnRouting');btn.disabled=true;btn.textContent='Attendi 5s...';
+  var cdEl=document.getElementById('routingCooldown');
+  var cdInt=setInterval(function(){
+    var left=Math.ceil((osrmCooldownUntil-Date.now())/1000);
+    if(left<=0){clearInterval(cdInt);btn.disabled=false;btn.textContent='Routing OSRM';cdEl.style.display='none';}
+    else{cdEl.style.display='inline';cdEl.textContent=left+'s';}
+  },500);
+}
+
+function applyOSRMResult(legs,dep,zoneColor,allOrders){
+  // Build optimized order from OSRM legs
+  var optimized=[];
+  legs.forEach(function(leg){leg.orders.forEach(function(o){optimized.push(o);});});
+  var nonGeo=allOrders.filter(function(o){return!o.lat||!o.lng;});
+  var final=optimized.concat(nonGeo);
+
+  // Save as current manual order
+  currentRouteOrder=final.map(function(o){return o.id;});
+
+  // Clear and redraw
+  routeMarkers.forEach(function(m){routeMap.removeLayer(m);});routeMarkers.length=0;
+  if(window._routeLines){window._routeLines.forEach(function(l){routeMap.removeLayer(l);});}
+  window._routeLines=[];
+
+  // Departure
+  var depM=L.circleMarker([dep.lat,dep.lng],{radius:10,color:'#222',weight:3,fillColor:'#fff',fillOpacity:1}).addTo(routeMap);
+  depM.bindTooltip('PARTENZA '+minutesToHHMM(dep.time),{permanent:true,direction:'top',offset:[0,-12]});
+  routeMarkers.push(depM);
+
+  // Draw OSRM road lines
+  var totalDist=0,totalDur=0;
+  legs.forEach(function(leg){
+    totalDist+=leg.distance;totalDur+=leg.duration;
+    if(leg.geometry){var line=L.geoJSON(leg.geometry,{style:{color:'#222',weight:3,opacity:.8}}).addTo(routeMap);window._routeLines.push(line);}
+  });
+
+  // ETA with OSRM times
+  var etaPerOrder={};var currentTime=dep.time;
+  legs.forEach(function(leg){
+    var perStop=leg.orders.length>0?(leg.duration/60)/leg.orders.length:0;
+    leg.orders.forEach(function(o){
+      currentTime+=perStop*TRAFFIC_FACTOR;
+      etaPerOrder[o.id]={eta:currentTime,slot:leg.slot};
+      currentTime+=calcUnloadMin(o);
+    });
+  });
+
+  // Numbered markers
+  final.forEach(function(o,idx){
+    if(!o.lat||!o.lng)return;
+    var period=getTimePeriod(o);
+    var isLate=etaPerOrder[o.id]&&etaPerOrder[o.id].eta>etaPerOrder[o.id].slot.end;
+    var bgColor=isLate?'#dc2626':zoneColor;
+    var numHtml='<div style="width:20px;height:20px;background:'+bgColor+';border:2px solid #fff;border-radius:'+(period==='pm'?'3px':'50%')+';color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)">'+(idx+1)+'</div>';
+    var marker=L.marker([o.lat,o.lng],{icon:L.divIcon({className:'',html:numHtml,iconSize:[22,22],iconAnchor:[11,11]})});
+    marker.addTo(routeMap);marker.bindPopup('<b>#'+(idx+1)+'</b> ETA: '+minutesToHHMM(etaPerOrder[o.id]?etaPerOrder[o.id].eta:0)+'<br>'+buildPopupContent(o),{maxWidth:300});
+    marker._orderId=o.id;marker.on('click',function(){highlightRouteOrder(o.id);});routeMarkers.push(marker);
+  });
+
+  // Stats
+  var distKm=Math.round(totalDist/1000*10)/10;
+  var driveMin=Math.round(totalDur/60);
+  var trafficMin=Math.round(driveMin*(TRAFFIC_FACTOR-1));
+  var unloadMin=0;final.forEach(function(o){unloadMin+=calcUnloadMin(o);});
+  var totalMin=driveMin+trafficMin+unloadMin;
+  var statsEl=document.getElementById('routeStats');
+  while(statsEl.firstChild)statsEl.removeChild(statsEl.firstChild);
+  [{l:'Guida',v:driveMin+' min'},{l:'Traffico',v:'+'+trafficMin+' min'},{l:'Scarico',v:unloadMin+' min'},{l:'Totale',v:totalMin+' min'},{l:'Distanza',v:distKm+' km'},{l:'Cons',v:final.length}]
+    .forEach(function(s){var sp=el('span',{className:'route-stats-item'});sp.appendChild(el('strong',{},s.v));sp.appendChild(document.createTextNode(' '+s.l));statsEl.appendChild(sp);});
+
+  if(window._routeLines.length>0){var bounds=[];window._routeLines.forEach(function(l){bounds.push(l.getBounds());});routeMap.fitBounds(bounds[0].pad(0.1));}
+
+  // Rebuild list
+  buildRouteList(final,zoneColor,etaPerOrder);
+}
+
+function buildRouteList(orderedList,zoneColor,etaPerOrder){
   etaPerOrder=etaPerOrder||{};
   var list=document.getElementById('routesList');
   while(list.firstChild)list.removeChild(list.firstChild);
+
+  var dragSrcIdx=null;
+
   orderedList.forEach(function(o,idx){
     var eta=etaPerOrder[o.id];
     var isLate=eta&&eta.eta>eta.slot.end;
-    var row=el('div',{className:'route-order'+(isLate?' late':''),'data-order-id':o.id,onClick:function(){
+    var row=el('div',{className:'route-order'+(isLate?' late':''),draggable:'true','data-order-id':o.id,'data-idx':String(idx)});
+
+    // Drag & drop handlers
+    row.addEventListener('dragstart',function(e){dragSrcIdx=idx;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    row.addEventListener('dragend',function(){row.classList.remove('dragging');list.querySelectorAll('.route-order').forEach(function(r){r.classList.remove('drag-over-top','drag-over-bottom');});});
+    row.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';var rect=row.getBoundingClientRect();var mid=rect.top+rect.height/2;list.querySelectorAll('.route-order').forEach(function(r){r.classList.remove('drag-over-top','drag-over-bottom');});row.classList.add(e.clientY<mid?'drag-over-top':'drag-over-bottom');});
+    row.addEventListener('dragleave',function(){row.classList.remove('drag-over-top','drag-over-bottom');});
+    row.addEventListener('drop',function(e){
+      e.preventDefault();row.classList.remove('drag-over-top','drag-over-bottom');
+      if(dragSrcIdx===null)return;
+      var targetIdx=idx;
+      var rect=row.getBoundingClientRect();
+      if(e.clientY>rect.top+rect.height/2)targetIdx++;
+      // Reorder
+      var item=orderedList.splice(dragSrcIdx,1)[0];
+      if(targetIdx>dragSrcIdx)targetIdx--;
+      orderedList.splice(targetIdx,0,item);
+      currentRouteOrder=orderedList.map(function(oo){return oo.id;});
+      dragSrcIdx=null;
+      renderRoute();
+    });
+
+    // Click to highlight on map
+    row.addEventListener('click',function(e){
+      if(e.target.tagName==='INPUT')return;
       routeMarkers.forEach(function(m){if(m._orderId===o.id){m.openPopup();if(m._icon)m._icon.style.transform+=' scale(1.5)';}});
       list.querySelectorAll('.route-order').forEach(function(r){r.classList.remove('highlighted');});
       row.classList.add('highlighted');
       setTimeout(function(){row.classList.remove('highlighted');routeMarkers.forEach(function(m){if(m._orderId===o.id&&m._icon)m._icon.style.transform=m._icon.style.transform.replace(' scale(1.5)','');});},4000);
-    }});
+    });
+
     var period=getTimePeriod(o);
     var numBg=isLate?'#dc2626':zoneColor;
     row.appendChild(el('div',{className:'ro-num',style:{background:numBg},textContent:String(idx+1)}));
     var info=el('div',{className:'ro-info'});
-    // Line 1: AM/PM + customer + products + ETA
     var line1=el('div',{className:'ro-line1'});
     line1.appendChild(el('span',{className:'ts-badge '+(period==='pm'?'pm':'am'),textContent:period==='pm'?'PM':'AM'}));
     if(o.splitPart)line1.appendChild(el('span',{className:'split-badge',textContent:o.splitPart+'/'+o.splitTotal}));
@@ -2231,18 +2325,12 @@ function buildRouteList(orderedList,zoneColor,departureMinutes,etaPerOrder){
       if(isLate)line1.appendChild(el('span',{className:'ro-delay',textContent:'R'}));
     }
     info.appendChild(line1);
-    // Line 2: address + editable slot
     var line2=el('div',{style:{display:'flex',gap:'6px',alignItems:'center'}});
     line2.appendChild(el('span',{className:'ro-line2',style:{flex:'1'},title:o.address,textContent:o.address}));
-    // Editable timeslot
     var slot=parseSlotTimes(o);
     var slotEdit=el('div',{className:'ro-slot-edit'});
-    var startInp=el('input',{type:'time',value:minutesToHHMM(slot.start),onInput:function(){
-      o._customSlot=startInp.value+'-'+endInp.value;renderRoute();
-    }});
-    var endInp=el('input',{type:'time',value:minutesToHHMM(slot.end),onInput:function(){
-      o._customSlot=startInp.value+'-'+endInp.value;renderRoute();
-    }});
+    var startInp=el('input',{type:'time',value:minutesToHHMM(slot.start),onChange:function(){o._customSlot=startInp.value+'-'+endInp.value;renderRoute();}});
+    var endInp=el('input',{type:'time',value:minutesToHHMM(slot.end),onChange:function(){o._customSlot=startInp.value+'-'+endInp.value;renderRoute();}});
     slotEdit.appendChild(startInp);slotEdit.appendChild(document.createTextNode('-'));slotEdit.appendChild(endInp);
     line2.appendChild(slotEdit);
     info.appendChild(line2);
