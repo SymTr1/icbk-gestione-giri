@@ -2107,10 +2107,60 @@ function renderRoute(){
   depM.bindTooltip('PARTENZA '+minutesToHHMM(dep.time),{permanent:true,direction:'top',offset:[0,-12]});
   routeMarkers.push(depM);
 
-  // Draw straight-line route
-  var pts=[[dep.lat,dep.lng]];
-  routeOrders.forEach(function(o){if(o.lat&&o.lng)pts.push([o.lat,o.lng]);});
-  if(pts.length>1){var line=L.polyline(pts,{color:'#222',weight:2,opacity:.4,dashArray:'6 4'}).addTo(routeMap);window._routeLines=[line];}
+  // Draw real road route (OSRM Route API - keeps given order)
+  var geoForRoute=routeOrders.filter(function(o){return o.lat&&o.lng;});
+  if(geoForRoute.length>0){
+    var coords=dep.lng+','+dep.lat;
+    geoForRoute.forEach(function(o){coords+=';'+o.lng+','+o.lat;});
+    fetch('https://router.project-osrm.org/route/v1/driving/'+coords+'?overview=full&geometries=geojson')
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if(data.code==='Ok'&&data.routes&&data.routes[0]){
+          var route=data.routes[0];
+          var line=L.geoJSON(route.geometry,{style:{color:'#222',weight:3,opacity:.8}}).addTo(routeMap);
+          window._routeLines.push(line);
+          // Update ETAs with real drive time
+          var realDriveMin=route.duration/60;
+          var realDistKm=Math.round(route.distance/1000*10)/10;
+          var trafficMin=Math.round(realDriveMin*(TRAFFIC_FACTOR-1));
+          var unloadMin=0;routeOrders.forEach(function(o){unloadMin+=calcUnloadMin(o);});
+          var totalMin=Math.round(realDriveMin)+trafficMin+unloadMin;
+          var statsEl=document.getElementById('routeStats');
+          while(statsEl.firstChild)statsEl.removeChild(statsEl.firstChild);
+          [{l:'Guida',v:Math.round(realDriveMin)+' min'},{l:'Traffico',v:'+'+trafficMin+' min'},{l:'Scarico',v:unloadMin+' min'},{l:'Totale',v:totalMin+' min'},{l:'Distanza',v:realDistKm+' km'},{l:'Cons',v:routeOrders.length}]
+            .forEach(function(s){var sp=el('span',{className:'route-stats-item'});sp.appendChild(el('strong',{},s.v));sp.appendChild(document.createTextNode(' '+s.l));statsEl.appendChild(sp);});
+          // Recalc ETAs with real per-leg times
+          if(data.routes[0].legs){
+            var ct=dep.time;var newEta={};
+            data.routes[0].legs.forEach(function(leg,li){
+              ct+=leg.duration/60*TRAFFIC_FACTOR;
+              if(li<geoForRoute.length){
+                var o=geoForRoute[li];
+                newEta[o.id]={eta:ct,slot:parseSlotTimes(o)};
+                ct+=calcUnloadMin(o);
+              }
+            });
+            // Update delay flags in list
+            document.querySelectorAll('.route-order').forEach(function(row){
+              var oid=row.getAttribute('data-order-id');
+              var ne=newEta[oid];if(!ne)return;
+              var etaEl=row.querySelector('.ro-eta');
+              var delayEl=row.querySelector('.ro-delay');
+              var numEl=row.querySelector('.ro-num');
+              var isLate=ne.eta>ne.slot.end;
+              if(etaEl){etaEl.textContent='ETA '+minutesToHHMM(ne.eta);etaEl.className='ro-eta'+(isLate?' late':'');}
+              if(isLate&&!delayEl){var d=el('span',{className:'ro-delay',textContent:'R'});if(etaEl)etaEl.parentNode.insertBefore(d,etaEl.nextSibling);}
+              if(!isLate&&delayEl)delayEl.remove();
+              if(numEl)numEl.style.background=isLate?'#dc2626':numEl.style.background;
+            });
+          }
+        }
+      }).catch(function(){});// silent fail, keep dashed line as fallback
+    // Temporary dashed line while OSRM loads
+    var pts=[[dep.lat,dep.lng]];geoForRoute.forEach(function(o){pts.push([o.lat,o.lng]);});
+    var tmpLine=L.polyline(pts,{color:'#ccc',weight:1,opacity:.3,dashArray:'4 4'}).addTo(routeMap);
+    window._routeLines.push(tmpLine);
+  }
 
   // Numbered markers
   routeOrders.forEach(function(o,idx){
