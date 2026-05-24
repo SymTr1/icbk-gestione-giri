@@ -452,7 +452,62 @@ function formatProductsDOM(products){var frag=document.createDocumentFragment();
 // ============================================================
 function showResolvePanel(unfound){if(unfound.length===0){finishResolve();return;}var overlay=document.getElementById('resolveOverlay');var list=document.getElementById('resolveList');document.getElementById('resolveCount').textContent=unfound.length;while(list.firstChild)list.removeChild(list.firstChild);resolveMaps=[];unfound.forEach(function(order,idx){var item=el('div',{className:'resolve-item','data-order-id':order.id});var info=el('div',{className:'resolve-info'});info.appendChild(el('div',{className:'resolve-customer',textContent:order.customer}));info.appendChild(el('div',{className:'resolve-address',textContent:'Indirizzo: '+order.address}));var sr=el('div',{className:'resolve-search'});var si=el('input',{type:'text',placeholder:'Digita indirizzo corretto...',value:cleanAddress(order.address)});var sb=el('button',{className:'btn',textContent:'Cerca',onClick:function(){var q=si.value.trim();if(!q)return;sb.textContent='...';geocodeSearchNominatim(q).then(function(res){sb.textContent='Cerca';rd.textContent='';if(res.length===0){rd.textContent='Nessun risultato. Clicca sulla mappa.';rd.style.color='var(--red)';return;}res.forEach(function(r){rd.appendChild(el('button',{className:'btn',style:{fontSize:'11px',margin:'2px'},textContent:r.display_name.substring(0,80),onClick:function(){applyResolve(order,item,md,parseFloat(r.lat),parseFloat(r.lon));}}));});});}});sr.appendChild(si);sr.appendChild(sb);info.appendChild(sr);var rd=el('div',{className:'resolve-result'});info.appendChild(rd);item.appendChild(info);var mapDiv=el('div',{className:'resolve-map'});var mi=el('div',{className:'resolve-map-inner',id:'rMap'+idx});mapDiv.appendChild(mi);mapDiv.appendChild(el('div',{className:'resolve-hint',textContent:'Clicca sulla mappa per posizionare'}));item.appendChild(mapDiv);list.appendChild(item);var md={map:null,marker:null};resolveMaps.push(md);setTimeout(function(){var m=L.map('rMap'+idx,{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(m);ZONES.forEach(function(z){L.polygon(z.polygon.map(function(p){return[p[1],p[0]];}),{color:z.color,weight:1.5,fillOpacity:.1}).addTo(m);});md.map=m;m.on('click',function(e){applyResolve(order,item,md,e.latlng.lat,e.latlng.lng);});},100+idx*50);});overlay.classList.add('active');}
 function applyResolve(order,itemEl,md,lat,lng){order.lat=lat;order.lng=lng;order.zone=findZone(lng,lat);geocodeCache[order.address.toLowerCase().trim()]={lat:lat,lng:lng};try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}if(md.marker&&md.map)md.map.removeLayer(md.marker);md.marker=L.marker([lat,lng]).addTo(md.map);md.map.setView([lat,lng],14);itemEl.classList.add('resolved');var re=itemEl.querySelector('.resolve-result');if(re){re.textContent='Zona: '+(order.zone||'Fuori zone');re.style.color='var(--green)';}document.getElementById('resolveCount').textContent=document.querySelectorAll('.resolve-item:not(.resolved)').length;}
-function finishResolve(){document.getElementById('resolveOverlay').classList.remove('active');resolveMaps.forEach(function(md){if(md.map)md.map.remove();});resolveMaps=[];ordersSnapshot=JSON.stringify(orders);document.getElementById('mainView').classList.add('active');renderAll();}
+function finishResolve(){document.getElementById('resolveOverlay').classList.remove('active');resolveMaps.forEach(function(md){if(md.map)md.map.remove();});resolveMaps=[];ordersSnapshot=JSON.stringify(orders);document.getElementById('mainView').classList.add('active');renderAll();showDriverDashboard();}
+
+function showDriverDashboard(){
+  // Count orders per zone
+  var zoneCounts={},totalOrders=0,totalColli=0,unassigned=0;
+  orders.forEach(function(o){
+    if(o.isSede)return;
+    totalOrders++;
+    var load=getOrderLoad(o);totalColli+=load.total;
+    if(!o.zone){unassigned++;}
+    else{if(!zoneCounts[o.zone])zoneCounts[o.zone]=0;zoneCounts[o.zone]++;}
+  });
+  var zoneCount=Object.keys(zoneCounts).length;
+  var suggestedDrivers=Math.max(zoneCount,Math.ceil(totalColli/150));
+  if(suggestedDrivers>10)suggestedDrivers=10;
+
+  var msgLines=[];
+  msgLines.push('Ordini caricati: '+totalOrders);
+  msgLines.push('Colli totali: '+totalColli);
+  msgLines.push('Zone con ordini: '+zoneCount);
+  if(unassigned>0)msgLines.push('Non assegnati: '+unassigned);
+  msgLines.push('');
+  ZONE_DISPLAY_ORDER.forEach(function(zn){
+    if(zoneCounts[zn])msgLines.push(zn+': '+zoneCounts[zn]+' consegne');
+  });
+  msgLines.push('');
+  msgLines.push('Corrieri suggeriti: '+suggestedDrivers+' ('+totalColli+' colli / 150 max)');
+
+  var bodyEl=el('div');
+  msgLines.forEach(function(l){bodyEl.appendChild(el('p',{style:{margin:'2px 0',fontSize:'13px'},textContent:l}));});
+  bodyEl.appendChild(el('div',{style:{marginTop:'12px',display:'flex',alignItems:'center',gap:'8px'}},[
+    el('label',{style:{fontWeight:'600',fontSize:'13px'},textContent:'Numero corrieri:'}),
+    el('select',{id:'dashDriverSelect',style:{padding:'5px 10px',border:'1px solid #ddd',borderRadius:'6px',fontSize:'14px'}})
+  ]));
+
+  showDialog({
+    title:'Riepilogo Giornata',
+    messageEl:bodyEl,
+    buttons:[{text:'Conferma e Procedi',cls:'btn-primary',action:function(){
+      var val=document.getElementById('dashDriverSelect').value;
+      document.getElementById('driverCount').value=val;
+      showToast('Corrieri impostati: '+val);
+    }}]
+  });
+
+  // Populate driver select after dialog is shown
+  setTimeout(function(){
+    var sel=document.getElementById('dashDriverSelect');
+    if(!sel)return;
+    for(var i=1;i<=10;i++){
+      var opt=document.createElement('option');opt.value=i;opt.textContent=i+(i===suggestedDrivers?' (consigliato)':'');
+      if(i===suggestedDrivers)opt.selected=true;
+      sel.appendChild(opt);
+    }
+  },50);
+}
 document.getElementById('resolveSkipBtn').addEventListener('click',finishResolve);
 
 // ============================================================
@@ -1603,6 +1658,8 @@ function renderAll(){
   updateHeaderStats();
   restoreCollapseState();
   refreshMainMapMarkers();
+  // Sync routes dropdown when zones change
+  if(routeMap)updateRouteZoneSelect();
 }
 
 // TABS + TOOLBAR
@@ -1961,7 +2018,7 @@ var routeMap=null,routeMarkers=[],routeZonePolygons=[];
 
 function initRouteMap(){
   if(routeMap)return;
-  routeMap=L.map('routeMap',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],12);
+  routeMap=L.map('routeMap',{scrollWheelZoom:false,zoomControl:true}).setView([45.464,9.19],13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM'}).addTo(routeMap);
   routeMap.on('click',function(){routeMap.scrollWheelZoom.enable();});
   routeMap.on('mouseout',function(){routeMap.scrollWheelZoom.disable();});
@@ -2177,7 +2234,7 @@ function renderRoute(){
   });
 
   // Fit bounds
-  if(pts.length>1)routeMap.fitBounds(pts,{padding:[30,30]});
+  // Don't change zoom on reorder - user controls the view
 
   // Stats (estimated without OSRM)
   var totalUnload=0;routeOrders.forEach(function(o){totalUnload+=calcUnloadMin(o);});
@@ -2313,7 +2370,7 @@ function applyOSRMResult(legs,dep,zoneColor,allOrders){
   [{l:'Guida',v:driveMin+' min'},{l:'Traffico',v:'+'+trafficMin+' min'},{l:'Scarico',v:unloadMin+' min'},{l:'Totale',v:totalMin+' min'},{l:'Distanza',v:distKm+' km'},{l:'Cons',v:final.length}]
     .forEach(function(s){var sp=el('span',{className:'route-stats-item'});sp.appendChild(el('strong',{},s.v));sp.appendChild(document.createTextNode(' '+s.l));statsEl.appendChild(sp);});
 
-  if(window._routeLines.length>0){var bounds=[];window._routeLines.forEach(function(l){bounds.push(l.getBounds());});routeMap.fitBounds(bounds[0].pad(0.1));}
+  // Don't change zoom after OSRM - user controls the view
 
   // Rebuild list
   buildRouteList(final,zoneColor,etaPerOrder);
