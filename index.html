@@ -309,35 +309,28 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 
     <!-- PAGE: Mappa -->
     <div class="tab-panel" id="panel-mappa">
-      <!-- Default: map only -->
-      <div id="mapDefaultView" style="display:flex;flex-direction:column;flex:1">
-        <div style="display:flex;gap:8px;padding:6px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center;flex-wrap:nowrap">
-          <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="mapShowZones" checked> Zone</label>
-          <span style="border-left:1px solid #ddd;height:14px"></span>
-          <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod" value="all" checked> Tutti</label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod" value="am"> AM</label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod" value="pm"> PM</label>
-          <span style="border-left:1px solid #ddd;height:14px"></span>
-          <button class="btn" id="btnMapSplit" style="padding:2px 8px;font-size:10px">Split View</button>
-        </div>
-        <div class="map-wrapper" style="flex:1;min-height:400px"><div id="mainMap"></div></div>
+      <div style="display:flex;gap:6px;padding:6px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center;flex-wrap:nowrap">
+        <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="mapShowZones" checked> Zone</label>
+        <span style="border-left:1px solid #ddd;height:14px"></span>
+        <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod" value="all" checked> Tutti</label>
+        <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod" value="am"> AM</label>
+        <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod" value="pm"> PM</label>
+        <span style="border-left:1px solid #ddd;height:14px"></span>
+        <button class="btn" id="btnMapSplit" style="padding:2px 8px;font-size:10px">Split View</button>
       </div>
-      <!-- Split: list + map side by side -->
-      <div id="mapSplitView" style="display:none;flex:1">
-        <div style="display:flex;gap:8px;padding:6px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center;flex-wrap:nowrap">
-          <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="mapShowZones2"> Zone</label>
-          <span style="border-left:1px solid #ddd;height:14px"></span>
-          <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod2" value="all" checked> Tutti</label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod2" value="am"> AM</label>
-          <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod2" value="pm"> PM</label>
-          <span style="border-left:1px solid #ddd;height:14px"></span>
-          <button class="btn" id="btnMapDefault" style="padding:2px 8px;font-size:10px">Mappa Piena</button>
-        </div>
-        <div style="display:flex;flex:1;overflow:hidden">
-          <div style="flex:6;display:flex;flex-direction:column;overflow:hidden">
+      <!-- Default: map on top, orders below -->
+      <div id="mapDefaultView" style="flex:1;display:flex;flex-direction:column;overflow-y:auto">
+        <div style="height:50vh;min-height:350px;flex-shrink:0;position:relative"><div id="mainMap" style="position:absolute;top:0;left:0;right:0;bottom:0"></div></div>
+        <div class="zone-filter-bar" id="zfMap"></div>
+        <div id="mapContainer"></div>
+      </div>
+      <!-- Split: lists left + map right -->
+      <div id="mapSplitView" style="display:none;flex:1;overflow:hidden">
+        <div style="display:flex;height:100%">
+          <div style="flex:6;min-width:300px;display:flex;flex-direction:column;overflow:hidden">
             <div class="zone-filter-bar" id="zfMapSplit1"></div>
-            <div id="mapSplitList1" style="flex:1;overflow-y:auto"></div>
-            <div class="zone-filter-bar" id="zfMapSplit2" style="border-top:2px solid var(--accent)"></div>
+            <div id="mapSplitList1" style="flex:1;overflow-y:auto;border-bottom:2px solid var(--accent)"></div>
+            <div class="zone-filter-bar" id="zfMapSplit2"></div>
             <div id="mapSplitList2" style="flex:1;overflow-y:auto"></div>
           </div>
           <div id="mapSplitResize" style="width:5px;background:#e0e0e0;cursor:col-resize;flex-shrink:0"></div>
@@ -1686,13 +1679,12 @@ function renderAll(){
   }else{
     fb('zfGiri','giri');renderZones('zonesContainer',f,filters.giri);
   }
-  // Mappa
-  if(dualMode){fb('zfMapL','map1L');fb('zfMapR','map1R');renderZones('mapDualLeft',f,filters.map1L);renderZones('mapDualRight',f,filters.map1R);}
-  else{fb('zfMap','map1');renderZones('mapContainer',f,filters.map1);}
+  // Mappa default view
+  fb('zfMap','map1');renderZones('mapContainer',f,filters.map1);
   updateHeaderStats();
   restoreCollapseState();
   refreshMainMapMarkers();
-  // Sync routes dropdown when zones change
+  if(splitMap&&mapSplitMode)renderMapSplit();
   if(routeMap)updateRouteZoneSelect();
 }
 
@@ -1715,16 +1707,14 @@ document.getElementById('sidebarToggle').addEventListener('click',function(){doc
 
 // Mappa split view
 var splitMap=null,splitMapMarkers=[],mapSplitFilter1='TUTTI',mapSplitFilter2='TUTTI';
+var mapSplitMode=false;
 document.getElementById('btnMapSplit').addEventListener('click',function(){
-  document.getElementById('mapDefaultView').style.display='none';
-  document.getElementById('mapSplitView').style.display='flex';
-  initSplitMap();
-  setTimeout(function(){splitMap.invalidateSize();renderMapSplit();},100);
-});
-document.getElementById('btnMapDefault').addEventListener('click',function(){
-  document.getElementById('mapSplitView').style.display='none';
-  document.getElementById('mapDefaultView').style.display='flex';
-  setTimeout(function(){if(mainMap)mainMap.invalidateSize();refreshMainMapMarkers();},100);
+  mapSplitMode=!mapSplitMode;
+  document.getElementById('mapDefaultView').style.display=mapSplitMode?'none':'flex';
+  document.getElementById('mapSplitView').style.display=mapSplitMode?'flex':'none';
+  this.textContent=mapSplitMode?'Mappa Piena':'Split View';
+  if(mapSplitMode){initSplitMap();setTimeout(function(){splitMap.invalidateSize();renderMapSplit();},100);}
+  else{setTimeout(function(){if(mainMap)mainMap.invalidateSize();refreshMainMapMarkers();},100);}
 });
 
 function initSplitMap(){
@@ -1746,9 +1736,7 @@ function initSplitMap(){
     function onUp(){handle.style.background='';document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);if(splitMap)splitMap.invalidateSize();}
     document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
   });
-  // Zone checkbox + period radios for split view
-  document.getElementById('mapShowZones2').addEventListener('change',function(){renderMapSplit();});
-  document.querySelectorAll('input[name="mapPeriod2"]').forEach(function(r){r.addEventListener('change',function(){renderMapSplit();});});
+  // Use the shared zone/period controls for split view too
 }
 
 function renderMapSplit(){
@@ -1760,11 +1748,10 @@ function renderMapSplit(){
   // Render zone tables in both lists
   renderZones('mapSplitList1',f,mapSplitFilter1);
   renderZones('mapSplitList2',f,mapSplitFilter2);
-  // Refresh map markers
+  // Refresh map markers (uses shared controls)
   splitMapMarkers.forEach(function(m){splitMap.removeLayer(m);});splitMapMarkers.length=0;
-  var showZones=document.getElementById('mapShowZones2').checked;
   var mapPeriod2='all';
-  document.querySelectorAll('input[name="mapPeriod2"]').forEach(function(r){if(r.checked)mapPeriod2=r.value;});
+  document.querySelectorAll('input[name="mapPeriod"]').forEach(function(r){if(r.checked)mapPeriod2=r.value;});
   orders.forEach(function(o){
     if(!o.lat||!o.lng)return;
     if(mapPeriod2!=='all'&&getTimePeriod(o)!==mapPeriod2)return;
