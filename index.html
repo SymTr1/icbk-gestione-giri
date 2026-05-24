@@ -37,20 +37,24 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .tab-panel{display:none;flex:1;overflow-y:auto;}.tab-panel.active{display:flex;flex-direction:column;}
 /* Routes */
 .routes-layout{display:flex;flex:1;overflow:hidden;}
-.routes-sidebar{width:380px;min-width:380px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:#fff;}
-.routes-sidebar-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;}
+.routes-sidebar{flex:7;min-width:300px;display:flex;flex-direction:column;overflow:hidden;background:#fff;}
+.routes-sidebar-header{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px;}
 .routes-list{flex:1;overflow-y:auto;}
-.routes-map{flex:1;position:relative;}
+.routes-resize{width:5px;background:#e0e0e0;cursor:col-resize;flex-shrink:0;transition:background .15s;}
+.routes-resize:hover,.routes-resize.dragging{background:var(--accent);}
+.routes-map{flex:3;min-width:250px;position:relative;}
 #routeMap{width:100%;height:100%;}
-.route-order{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:12px;transition:background .1s;}
+.route-order{display:flex;align-items:flex-start;gap:6px;padding:5px 10px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:12px;transition:background .1s;}
 .route-order:hover{background:#f0f7ff;}
 .route-order.highlighted{background:#dbeafe;outline:2px solid #2563eb;}
-.route-order .ro-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
+.route-order .ro-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;margin-top:2px;}
 .route-order .ro-info{flex:1;min-width:0;}
-.route-order .ro-customer{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.route-order .ro-detail{font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.route-order .ro-time{font-size:10px;color:#999;white-space:nowrap;}
-.route-order .ro-products{font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.route-order .ro-line1{display:flex;gap:4px;align-items:center;white-space:nowrap;overflow:hidden;}
+.route-order .ro-customer{font-weight:500;overflow:hidden;text-overflow:ellipsis;}
+.route-order .ro-prods{font-size:10px;color:#888;overflow:hidden;text-overflow:ellipsis;}
+.route-order .ro-time{font-size:10px;color:#999;white-space:nowrap;margin-left:auto;flex-shrink:0;}
+.route-order .ro-line2{font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.route-line{stroke-dasharray:8 4;}
 .toolbar{display:flex;gap:10px;padding:10px 20px;flex-wrap:wrap;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);}
 .toolbar input[type="text"]{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;width:240px;}
 .btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;}.btn:hover{border-color:var(--accent);}.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}.btn-danger{background:var(--red);border-color:var(--red);color:#fff;}.btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
@@ -281,11 +285,11 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     <button class="sidebar-toggle" id="sidebarToggle" title="Menu">&#9776;</button>
     <div class="nav-item active" data-page="giri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg><span class="nav-label">Giri per Zona</span></div>
     <div class="nav-item" data-page="mappa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><path d="M8 2v16M16 6v16"/></svg><span class="nav-label">Mappa</span></div>
-    <div class="nav-item" data-page="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg><span class="nav-label">Routes</span></div>
+    <div class="nav-item" data-page="routes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l4-4 4 4 4-4 4 4"/><path d="M3 7l4 4 4-4 4 4 4-4"/></svg><span class="nav-label">Routes</span></div>
   </div>
   <!-- CONTENT -->
   <div class="content-area">
-    <div class="toolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px">Corrieri: <select id="driverCount" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:12px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label><button class="btn" id="btnBalance">Bilancia</button><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn btn-danger" id="btnResetMods">Resetta Modifiche</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
+    <div class="toolbar" id="mainToolbar"><input type="text" id="searchInput" placeholder="Cerca cliente, indirizzo, prodotto..."><label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px">Corrieri: <select id="driverCount" style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 6px;font-size:12px"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label><button class="btn" id="btnBalance">Bilancia</button><button class="btn" id="btnAddZone">+ Zona</button><button class="btn" id="btnDual">Doppia Vista</button><button class="btn" id="btnExpand">Espandi Tutti</button><button class="btn" id="btnCollapse">Comprimi Tutti</button><button class="btn btn-danger" id="btnResetMods">Resetta Modifiche</button><button class="btn" id="btnPrint">Stampa</button><button class="btn" id="btnExport">Esporta Excel</button><button class="btn btn-primary" id="btnReset">Nuovo Caricamento</button></div>
 
     <!-- PAGE: Giri per Zona -->
     <div class="tab-panel active" id="panel-giri">
@@ -310,18 +314,25 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     <!-- PAGE: Routes -->
     <div class="tab-panel" id="panel-routes">
       <div class="routes-layout">
-        <div class="routes-sidebar">
+        <div class="routes-sidebar" id="routesSidebar">
           <div class="routes-sidebar-header">
-            <select id="routeZoneSelect" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px"></select>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="routeZoneSelect" style="flex:1;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></select>
+              <span style="font-size:11px;color:#666;white-space:nowrap" id="routeStats"></span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
               <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="routePeriod" value="all" checked> Tutti</label>
               <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="routePeriod" value="am"> AM</label>
               <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="routePeriod" value="pm"> PM</label>
-              <span style="margin-left:auto;font-size:11px;color:#666" id="routeStats"></span>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" style="width:14px;height:14px;flex-shrink:0"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4"/></svg>
+              <input type="text" id="routeDeparture" value="Via Eugenio Montale 29, Opera (MI)" style="flex:1;padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:11px;color:#666" title="Indirizzo di partenza">
             </div>
           </div>
           <div class="routes-list" id="routesList"></div>
         </div>
+        <div class="routes-resize" id="routesResize"></div>
         <div class="routes-map"><div id="routeMap"></div></div>
       </div>
     </div>
@@ -1584,6 +1595,8 @@ document.querySelectorAll('.nav-item').forEach(function(nav){nav.addEventListene
   this.classList.add('active');
   var page=this.getAttribute('data-page');
   document.getElementById('panel-'+page).classList.add('active');
+  // Hide toolbar on Routes page
+  document.getElementById('mainToolbar').style.display=(page==='routes'?'none':'flex');
   if(page==='mappa'){initMainMap();setTimeout(function(){mainMap.invalidateSize();refreshMainMapMarkers();},100);}
   if(page==='routes'){initRouteMap();setTimeout(function(){routeMap.invalidateSize();renderRoute();},100);}
 });});
@@ -2028,39 +2041,69 @@ function renderRoute(){
     routeMarkers.push(marker);
   });
 
-  // Build order list
+  // Draw route line (departure -> stops in order)
+  if(window._routeLine){routeMap.removeLayer(window._routeLine);window._routeLine=null;}
+  var routePoints=[];
+  // Departure point
+  var depAddr=document.getElementById('routeDeparture').value;
+  var depCache=geocodeCache[depAddr.toLowerCase().trim()];
+  if(depCache)routePoints.push([depCache.lat,depCache.lng]);
+  else routePoints.push([45.3833,9.2167]); // Opera default
+  // Add order points
+  zoneOrders.forEach(function(o){if(o.lat&&o.lng)routePoints.push([o.lat,o.lng]);});
+  if(routePoints.length>1){
+    window._routeLine=L.polyline(routePoints,{color:zoneColor,weight:2,opacity:.5,dashArray:'8 4'}).addTo(routeMap);
+  }
+  // Add departure marker
+  var depMarker=L.circleMarker(routePoints[0],{radius:10,color:zoneColor,weight:3,fillColor:'#fff',fillOpacity:1}).addTo(routeMap);
+  depMarker.bindTooltip('PARTENZA',{permanent:true,direction:'top',className:'',offset:[0,-12]});
+  routeMarkers.push(depMarker);
+
+  // Build order list (compact: line1=period+customer+products+time, line2=address)
   var list=document.getElementById('routesList');
   while(list.firstChild)list.removeChild(list.firstChild);
   zoneOrders.forEach(function(o,idx){
     var row=el('div',{className:'route-order','data-order-id':o.id,onClick:function(){
-      // Highlight on map
-      routeMarkers.forEach(function(m){
-        if(m._orderId===o.id){m.openPopup();if(m.setRadius)m.setRadius(14);else if(m._icon)m._icon.style.transform+=' scale(1.5)';}
-        else{if(m.setRadius&&m.options.fillColor===zoneColor)m.setRadius(8);}
-      });
-      // Highlight this row
+      routeMarkers.forEach(function(m){if(m._orderId===o.id){m.openPopup();if(m.setRadius)m.setRadius(14);else if(m._icon)m._icon.style.transform+=' scale(1.5)';}});
       list.querySelectorAll('.route-order').forEach(function(r){r.classList.remove('highlighted');});
       row.classList.add('highlighted');
       setTimeout(function(){row.classList.remove('highlighted');routeMarkers.forEach(function(m){if(m._orderId===o.id&&m.setRadius)m.setRadius(8);});},4000);
     }});
     var period=getTimePeriod(o);
-    var numEl=el('div',{className:'ro-num',style:{background:zoneColor},textContent:String(idx+1)});
-    row.appendChild(numEl);
+    row.appendChild(el('div',{className:'ro-num',style:{background:zoneColor},textContent:String(idx+1)}));
     var info=el('div',{className:'ro-info'});
-    var custLine=el('div',{className:'ro-customer'});
-    custLine.appendChild(el('span',{className:'ts-badge '+(period==='pm'?'pm':'am'),textContent:period==='pm'?'PM':'AM',style:{marginRight:'4px'}}));
-    if(o.splitPart)custLine.appendChild(el('span',{className:'split-badge',textContent:o.splitPart+'/'+o.splitTotal}));
-    custLine.appendChild(document.createTextNode(o.customer));
-    info.appendChild(custLine);
-    info.appendChild(el('div',{className:'ro-detail',textContent:o.address}));
+    // Line 1: AM/PM + customer + products + time
+    var line1=el('div',{className:'ro-line1'});
+    line1.appendChild(el('span',{className:'ts-badge '+(period==='pm'?'pm':'am'),textContent:period==='pm'?'PM':'AM'}));
+    if(o.splitPart)line1.appendChild(el('span',{className:'split-badge',textContent:o.splitPart+'/'+o.splitTotal}));
+    line1.appendChild(el('span',{className:'ro-customer',textContent:o.customer}));
     var prodStr=o.products.map(function(p){return'['+p.quantity+'x'+p.abbr+']';}).join('+');
-    info.appendChild(el('div',{className:'ro-products',textContent:prodStr}));
-    row.appendChild(info);
+    line1.appendChild(el('span',{className:'ro-prods',textContent:prodStr}));
     var timeStr=o.timeslot?(o.timeslot.match(/\d{1,2}[:.]\d{2}\s*[/-]\s*\d{1,2}[:.]\d{2}/)||[''])[0]:'';
-    row.appendChild(el('div',{className:'ro-time',textContent:timeStr||'-'}));
+    line1.appendChild(el('span',{className:'ro-time',textContent:timeStr||'-'}));
+    info.appendChild(line1);
+    // Line 2: address
+    info.appendChild(el('div',{className:'ro-line2',title:o.address,textContent:o.address}));
+    row.appendChild(info);
     list.appendChild(row);
   });
 }
+
+// Resize handle for routes split
+(function(){
+  var handle=document.getElementById('routesResize');
+  if(!handle)return;
+  var sidebar=document.getElementById('routesSidebar');
+  handle.addEventListener('mousedown',function(e){
+    e.preventDefault();
+    var startX=e.clientX,startW=sidebar.offsetWidth;
+    handle.classList.add('dragging');
+    function onMove(ev){sidebar.style.flex='none';sidebar.style.width=Math.max(250,startW+(ev.clientX-startX))+'px';}
+    function onUp(){handle.classList.remove('dragging');document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);if(routeMap)routeMap.invalidateSize();}
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  });
+})();
 
 function highlightRouteOrder(orderId){
   var list=document.getElementById('routesList');
