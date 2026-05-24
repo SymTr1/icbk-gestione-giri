@@ -844,29 +844,24 @@ function simulateBalance(nDrivers,totalLoad){
   var suggestions=[];
   var hasSplitDeroga=false;
   var movedOrderIds={};
-  // Extra driver names created during simulation (not yet in global state)
   var simExtraZones=[];
 
   var activeZones=ZONE_DISPLAY_ORDER.slice();
   customZones.forEach(function(cz){activeZones.push(cz);});
 
-  // Plan extra driver zones if needed (do NOT modify global state yet)
+  // Plan extra driver zones (do NOT modify global state)
   if(nDrivers>activeZones.length){
     var letters='ABCDEFGHIJ';
     for(var li=0;li<nDrivers-activeZones.length;li++){
       var dName='DRIVER '+letters[li];
-      if(activeZones.indexOf(dName)===-1){
-        simExtraZones.push(dName);
-        activeZones.push(dName);
-      }
+      if(activeZones.indexOf(dName)===-1){simExtraZones.push(dName);activeZones.push(dName);}
     }
   }
 
   // Merge zones if drivers < 5
   if(nDrivers<5){
     var keepZones=ZONE_DISPLAY_ORDER.slice(0,nDrivers);
-    var mergeZones=ZONE_DISPLAY_ORDER.slice(nDrivers);
-    mergeZones.forEach(function(mz){
+    ZONE_DISPLAY_ORDER.slice(nDrivers).forEach(function(mz){
       var mc=getZoneCentroid(mz);var bestZone=keepZones[0],bestDist=Infinity;
       keepZones.forEach(function(kz){var kc=getZoneCentroid(kz);if(mc&&kc){var d=distanceBetween(mc.lat,mc.lng,kc.lat,kc.lng);if(d<bestDist){bestDist=d;bestZone=kz;}}});
       orders.forEach(function(o){if(o.zone===mz)suggestions.push({type:'move',order:o,from:mz,to:bestZone,reason:'Accorpamento: '+nDrivers+' corrieri, '+mz+' \u2192 '+bestZone});});
@@ -874,150 +869,168 @@ function simulateBalance(nDrivers,totalLoad){
     activeZones=keepZones.concat(customZones);
   }
 
-  // Simulate loads
-  var simLoads={};
-  activeZones.forEach(function(zn){simLoads[zn]=getZoneLoad(zn).total;});
+  // Build simulated zone assignments: orderId -> zone
+  var simZone={};
+  orders.forEach(function(o){simZone[o.id]=o.zone||null;});
+  suggestions.forEach(function(s){if(s.type==='move')simZone[s.order.id]=s.to;});
+
+  function getSimZoneOrders(zn){return orders.filter(function(o){return simZone[o.id]===zn&&!movedOrderIds[o.id];});}
+  function getSimLoad(zn){var t=0;orders.forEach(function(o){if(simZone[o.id]===zn)t+=getOrderLoad(o).total;});return t;}
+
+  // Helper: min distance from an order to any order in a zone
+  function minDistToZoneOrders(order,zoneName){
+    var minD=Infinity;
+    orders.forEach(function(o){
+      if(simZone[o.id]!==zoneName||!o.lat||!o.lng)return;
+      var d=distanceBetween(order.lat,order.lng,o.lat,o.lng);
+      if(d<minD)minD=d;
+    });
+    return minD;
+  }
 
   var targetPerDriver=Math.ceil(totalLoad/nDrivers);
 
-  // Phase 1: Extra drivers - proximity-based clustering across ALL zones
-  if(simExtraZones.length>0){
-    simExtraZones.forEach(function(driverZone){
-      simLoads[driverZone]=0;
-
-      // Collect ALL movable orders: from overloaded zones + unassigned
-      var candidates=[];
-      // Prioritize: unassigned first, then orders from zones above target
-      orders.forEach(function(o){
-        if(movedOrderIds[o.id]||!o.lat||!o.lng||o.isSede)return;
-        if(!o.zone){candidates.push({order:o,from:'NON ASSEGNATI',priority:0});return;}
-        var zl=simLoads[o.zone]||0;
-        if(zl>targetPerDriver){candidates.push({order:o,from:o.zone,priority:1});}
-      });
-      if(candidates.length===0)return;
-
-      // Find seed: unassigned order or order from most overloaded zone
-      candidates.sort(function(a,b){
-        if(a.priority!==b.priority)return a.priority-b.priority;
-        var al=simLoads[a.from]||0,bl=simLoads[b.from]||0;
-        return bl-al; // heaviest zone first
-      });
-
-      var seed=candidates[0];
-      var cluster=[seed];
-      var clusterLoad=getOrderLoad(seed.order).total;
-      candidates.splice(0,1);
-
-      // Grow cluster by proximity
-      while(clusterLoad<targetPerDriver&&candidates.length>0){
-        var bestIdx=-1,bestDist=Infinity;
-        for(var ci=0;ci<candidates.length;ci++){
-          var cand=candidates[ci];
-          // Distance to nearest cluster member
-          var minD=Infinity;
-          for(var ki=0;ki<cluster.length;ki++){
-            var d=distanceBetween(cand.order.lat,cand.order.lng,cluster[ki].order.lat,cluster[ki].order.lng);
-            if(d<minD)minD=d;
-          }
-          if(minD<bestDist){bestDist=minD;bestIdx=ci;}
-        }
-        if(bestIdx===-1)break;
-        var next=candidates[bestIdx];
-        var nLoad=getOrderLoad(next.order).total;
-        if(clusterLoad+nLoad>CAPACITY_NORMAL){candidates.splice(bestIdx,1);continue;}
-        cluster.push(next);candidates.splice(bestIdx,1);
-        clusterLoad+=nLoad;
-      }
-
-      // Apply cluster
-      cluster.forEach(function(c){
-        suggestions.push({type:'move',order:c.order,from:c.from,to:driverZone,reason:'Driver extra: '+c.order.customer+' da '+c.from+' \u2192 '+driverZone+' (cluster prossimit\u00e0)'});
-        movedOrderIds[c.order.id]=true;
-        if(simLoads[c.from]!==undefined)simLoads[c.from]-=getOrderLoad(c.order).total;
-        simLoads[driverZone]+=getOrderLoad(c.order).total;
-      });
+  // ============================================================
+  // PHASE 1: Driver extra - take from heaviest zone, cluster nearby + unassigned
+  // ============================================================
+  simExtraZones.forEach(function(driverZone){
+    // Find heaviest standard zone
+    var maxZone=null,maxLoad=0;
+    ZONE_DISPLAY_ORDER.forEach(function(zn){
+      var zl=getSimLoad(zn);if(zl>maxLoad){maxLoad=zl;maxZone=zn;}
     });
-  }
+    if(!maxZone)return;
 
-  // Phase 2: Fix overloaded standard zones
-  activeZones.forEach(function(zn){
-    if((simLoads[zn]||0)<=CAPACITY_NORMAL)return;
-    var zCentroid=getZoneCentroid(zn);
-    var zOrders=orders.filter(function(o){return o.zone===zn&&o.lat&&o.lng&&!movedOrderIds[o.id];});
-    if(zCentroid){zOrders.sort(function(a,b){return distanceBetween(b.lat,b.lng,zCentroid.lat,zCentroid.lng)-distanceBetween(a.lat,a.lng,zCentroid.lat,zCentroid.lng);});}
+    // Seed: take the order at the border of the heaviest zone
+    // (farthest from its zone's other orders = most "border")
+    var heavyOrders=getSimZoneOrders(maxZone).filter(function(o){return o.lat&&o.lng;});
+    if(heavyOrders.length===0)return;
+    var zCentroid=getZoneCentroid(maxZone);
+    if(zCentroid)heavyOrders.sort(function(a,b){return distanceBetween(b.lat,b.lng,zCentroid.lat,zCentroid.lng)-distanceBetween(a.lat,a.lng,zCentroid.lat,zCentroid.lng);});
+    var seed=heavyOrders[0];
+
+    // Grow cluster: start from seed, add closest orders (from ANY zone or unassigned)
+    var cluster=[{order:seed,from:maxZone}];
+    var clusterLoad=getOrderLoad(seed).total;
+    movedOrderIds[seed.id]=true;
+
+    // Candidates: all orders from overloaded zones + unassigned, with coordinates
+    var allCandidates=[];
+    orders.forEach(function(o){
+      if(o.id===seed.id||!o.lat||!o.lng||o.isSede||movedOrderIds[o.id])return;
+      var oz=simZone[o.id];
+      if(!oz){allCandidates.push({order:o,from:'NON ASSEGNATI'});return;}
+      if(getSimLoad(oz)>targetPerDriver){allCandidates.push({order:o,from:oz});}
+    });
+
+    while(clusterLoad<targetPerDriver&&allCandidates.length>0){
+      var bestIdx=-1,bestDist=Infinity;
+      for(var ci=0;ci<allCandidates.length;ci++){
+        var cand=allCandidates[ci];
+        var minD=Infinity;
+        for(var ki=0;ki<cluster.length;ki++){
+          var d=distanceBetween(cand.order.lat,cand.order.lng,cluster[ki].order.lat,cluster[ki].order.lng);
+          if(d<minD)minD=d;
+        }
+        if(minD<bestDist){bestDist=minD;bestIdx=ci;}
+      }
+      if(bestIdx===-1)break;
+      // Only take if reasonably close (within ~5km, ~0.05 degrees)
+      if(bestDist>0.05)break;
+      var next=allCandidates[bestIdx];
+      var nLoad=getOrderLoad(next.order).total;
+      if(clusterLoad+nLoad>CAPACITY_NORMAL){allCandidates.splice(bestIdx,1);continue;}
+      cluster.push(next);allCandidates.splice(bestIdx,1);
+      movedOrderIds[next.order.id]=true;
+      clusterLoad+=nLoad;
+    }
+
+    cluster.forEach(function(c){
+      suggestions.push({type:'move',order:c.order,from:c.from,to:driverZone,reason:'Driver extra: '+c.order.customer+' da '+c.from+' \u2192 '+driverZone+' (cluster compatto)'});
+      simZone[c.order.id]=driverZone;
+    });
+  });
+
+  // ============================================================
+  // PHASE 2: Fix overloaded zones - swap only TRUE border orders
+  // ============================================================
+  var standardZones=activeZones.filter(function(zn){return simExtraZones.indexOf(zn)===-1;});
+  standardZones.forEach(function(zn){
+    if(getSimLoad(zn)<=CAPACITY_NORMAL)return;
     var adjacents=(ZONE_ADJACENCY[zn]||[]).filter(function(az){return activeZones.indexOf(az)!==-1;});
-    // Include extra drivers as "adjacent" to all zones
-    activeZones.forEach(function(az){if(az.indexOf('DRIVER ')===0&&adjacents.indexOf(az)===-1)adjacents.push(az);});
 
-    zOrders.forEach(function(o){
-      if((simLoads[zn]||0)<=CAPACITY_NORMAL)return;
-      var oLoad=getOrderLoad(o);
-      var bestAdj=null,bestAdjLoad=Infinity;
-      adjacents.forEach(function(az){var al=simLoads[az]||0;if(al<bestAdjLoad){bestAdjLoad=al;bestAdj=az;}});
-      if(bestAdj&&bestAdjLoad+oLoad.total<=CAPACITY_NORMAL){
-        suggestions.push({type:'move',order:o,from:zn,to:bestAdj,reason:zn+' sovraccarica. '+o.customer+' \u2192 '+bestAdj});
-        movedOrderIds[o.id]=true;
-        simLoads[zn]-=oLoad.total;simLoads[bestAdj]+=oLoad.total;
+    // Get orders, sorted by: closest to adjacent zone orders (true border)
+    var zOrders=getSimZoneOrders(zn).filter(function(o){return o.lat&&o.lng;});
+    // For each order, find how close it is to the nearest order in ANY adjacent zone
+    var orderScores=zOrders.map(function(o){
+      var bestAdjZone=null,bestAdjDist=Infinity;
+      adjacents.forEach(function(az){
+        var d=minDistToZoneOrders(o,az);
+        if(d<bestAdjDist){bestAdjDist=d;bestAdjZone=az;}
+      });
+      return{order:o,adjZone:bestAdjZone,adjDist:bestAdjDist};
+    });
+    // Sort: closest to adjacent zone first (true border orders)
+    orderScores.sort(function(a,b){return a.adjDist-b.adjDist;});
+
+    orderScores.forEach(function(os){
+      if(getSimLoad(zn)<=CAPACITY_NORMAL)return;
+      if(movedOrderIds[os.order.id])return;
+      if(!os.adjZone)return;
+      var oLoad=getOrderLoad(os.order).total;
+      var adjLoad=getSimLoad(os.adjZone);
+      if(adjLoad+oLoad>CAPACITY_NORMAL)return;
+      // Only move if this order is genuinely closer to adj zone orders than to own zone avg
+      var distToOwn=minDistToZoneOrders(os.order,zn);
+      // Exclude self from own zone distance (it's 0)
+      var ownOrders=getSimZoneOrders(zn).filter(function(o2){return o2.id!==os.order.id&&o2.lat&&o2.lng;});
+      var avgDistOwn=0;
+      if(ownOrders.length>0){
+        var sumD=0;ownOrders.forEach(function(o2){sumD+=distanceBetween(os.order.lat,os.order.lng,o2.lat,o2.lng);});
+        avgDistOwn=sumD/ownOrders.length;
+      }
+      // Move only if closer to adjacent than average of own zone
+      if(os.adjDist<avgDistOwn){
+        suggestions.push({type:'move',order:os.order,from:zn,to:os.adjZone,reason:zn+' sovraccarica: '+os.order.customer+' pi\u00f9 vicino a consegne di '+os.adjZone});
+        movedOrderIds[os.order.id]=true;
+        simZone[os.order.id]=os.adjZone;
       }
     });
 
     // Split big orders if still overloaded
-    if((simLoads[zn]||0)>CAPACITY_NORMAL){
-      var bigOrders=zOrders.filter(function(o){return getOrderLoad(o).kg>=SPLIT_THRESHOLD_KG&&!o.splitPart&&!movedOrderIds[o.id];});
-      bigOrders.forEach(function(o){
-        if((simLoads[zn]||0)<=CAPACITY_SPLIT_DEROGA)return;
-        var oLoad=getOrderLoad(o);
-        var bestAdj=null,bestAdjLoad=Infinity;
-        adjacents.forEach(function(az){var al=simLoads[az]||0;if(al<bestAdjLoad){bestAdjLoad=al;bestAdj=az;}});
-        if(bestAdj){
-          hasSplitDeroga=true;
-          suggestions.push({type:'split',order:o,from:zn,to:bestAdj,reason:o.customer+' ('+oLoad.kg+'kg) causa sovraccarico in '+zn+'. Divisione tra '+zn+' e '+bestAdj+' (deroga 180)'});
-          simLoads[zn]-=oLoad.total/2;simLoads[bestAdj]+=oLoad.total/2;
-        }
+    if(getSimLoad(zn)>CAPACITY_NORMAL){
+      zOrders.filter(function(o){return getOrderLoad(o).kg>=SPLIT_THRESHOLD_KG&&!o.splitPart&&!movedOrderIds[o.id];}).forEach(function(o){
+        if(getSimLoad(zn)<=CAPACITY_SPLIT_DEROGA)return;
+        var bestAdj=null,bestDist=Infinity;
+        adjacents.forEach(function(az){var d=minDistToZoneOrders(o,az);if(d<bestDist){bestDist=d;bestAdj=az;}});
+        if(bestAdj){hasSplitDeroga=true;suggestions.push({type:'split',order:o,from:zn,to:bestAdj,reason:o.customer+' ('+getOrderLoad(o).kg+'kg) sovraccarico '+zn+'. Divisione tra '+zn+' e '+bestAdj+' (deroga 180)'});}
       });
     }
   });
 
-  // Phase 3: Assign unassigned orders (cascade)
-  suggestions.forEach(function(s){if(s.type==='move')movedOrderIds[s.order.id]=true;});
-  // Update simLoads from suggestions
-  simLoads={};
-  activeZones.forEach(function(zn){simLoads[zn]=getZoneLoad(zn).total;});
-  suggestions.forEach(function(s){
-    if(s.type==='move'){
-      if(simLoads[s.from]!==undefined)simLoads[s.from]-=getOrderLoad(s.order).total;
-      if(simLoads[s.to]!==undefined)simLoads[s.to]+=getOrderLoad(s.order).total;
-    }
-  });
-
-  function cascadeFreeSpace(zoneToFree,spaceNeeded,visited,depth){
-    if(depth>5||!visited)visited={};if(visited[zoneToFree])return null;visited[zoneToFree]=true;
-    if((simLoads[zoneToFree]||0)+spaceNeeded<=CAPACITY_NORMAL)return[];
-    var excess=(simLoads[zoneToFree]||0)+spaceNeeded-CAPACITY_NORMAL;var moves=[];var freedSoFar=0;
-    var zc=getZoneCentroid(zoneToFree);
-    var zo=orders.filter(function(o){return o.zone===zoneToFree&&o.lat&&o.lng&&!movedOrderIds[o.id];});
-    if(zc)zo.sort(function(a,b){return distanceBetween(b.lat,b.lng,zc.lat,zc.lng)-distanceBetween(a.lat,a.lng,zc.lat,zc.lng);});
-    var adj=(ZONE_ADJACENCY[zoneToFree]||[]).filter(function(az){return activeZones.indexOf(az)!==-1&&!visited[az];});
-    activeZones.forEach(function(az){if(az.indexOf('DRIVER ')===0&&adj.indexOf(az)===-1&&!visited[az])adj.push(az);});
-    for(var oi=0;oi<zo.length&&freedSoFar<excess;oi++){
-      var bo=zo[oi],bl=getOrderLoad(bo).total,placed=false;
-      for(var ai=0;ai<adj.length&&!placed;ai++){if((simLoads[adj[ai]]||0)+bl<=CAPACITY_NORMAL){moves.push({type:'move',order:bo,from:zoneToFree,to:adj[ai],reason:'Cascata: '+bo.customer+' da '+zoneToFree+' \u2192 '+adj[ai]});simLoads[zoneToFree]-=bl;simLoads[adj[ai]]+=bl;movedOrderIds[bo.id]=true;freedSoFar+=bl;placed=true;}}
-      if(!placed){for(var ai2=0;ai2<adj.length&&!placed;ai2++){var sm=cascadeFreeSpace(adj[ai2],bl,Object.assign({},visited),depth+1);if(sm!==null){sm.forEach(function(m){moves.push(m);});moves.push({type:'move',order:bo,from:zoneToFree,to:adj[ai2],reason:'Cascata: '+bo.customer+' da '+zoneToFree+' \u2192 '+adj[ai2]+' (catena)'});simLoads[zoneToFree]-=bl;simLoads[adj[ai2]]+=bl;movedOrderIds[bo.id]=true;freedSoFar+=bl;placed=true;}}}
-    }
-    return freedSoFar>=excess?moves:null;
-  }
-
-  var unassigned=orders.filter(function(o){return!o.zone&&!o.isSede&&o.lat&&o.lng;});
+  // ============================================================
+  // PHASE 3: Assign unassigned - to zone with closest existing orders
+  // ============================================================
+  var unassigned=orders.filter(function(o){return!simZone[o.id]&&!o.isSede&&o.lat&&o.lng&&!movedOrderIds[o.id];});
   unassigned.sort(function(a,b){return getOrderLoad(b).total-getOrderLoad(a).total;});
   unassigned.forEach(function(o){
     var oLoad=getOrderLoad(o);
-    var zd=[];activeZones.forEach(function(zn){var zc=getZoneCentroid(zn);if(zc)zd.push({zone:zn,dist:distanceBetween(o.lat,o.lng,zc.lat,zc.lng)});});
-    zd.sort(function(a,b){return a.dist-b.dist;});
-    var placed=false;
-    for(var i=0;i<zd.length&&!placed;i++){if((simLoads[zd[i].zone]||0)+oLoad.total<=CAPACITY_NORMAL){suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:zd[i].zone,reason:'Non assegnato: '+o.customer+' \u2192 '+zd[i].zone});simLoads[zd[i].zone]+=oLoad.total;placed=true;}}
-    if(!placed){for(var i2=0;i2<Math.min(zd.length,3)&&!placed;i2++){var cm=cascadeFreeSpace(zd[i2].zone,oLoad.total,{},0);if(cm){cm.forEach(function(m){suggestions.push(m);});suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:zd[i2].zone,reason:'Non assegnato: '+o.customer+' \u2192 '+zd[i2].zone+' (cascata)'});simLoads[zd[i2].zone]+=oLoad.total;placed=true;}}}
-    if(!placed&&oLoad.kg>=SPLIT_THRESHOLD_KG&&!o.splitPart&&zd.length>=2){hasSplitDeroga=true;suggestions.push({type:'split',order:o,from:'NON ASSEGNATI',to:zd[0].zone,reason:o.customer+' ('+oLoad.kg+'kg). Divisione tra '+zd[0].zone+' e '+zd[1].zone});}
-    else if(!placed){suggestions.push({type:'driver',order:o,from:'NON ASSEGNATI',to:'',reason:'Impossibile: '+o.customer+'. Aggiungere un corriere.'});}
+    // Find zone whose ORDERS are closest to this one (not centroid!)
+    var bestZone=null,bestDist=Infinity;
+    activeZones.forEach(function(zn){
+      var d=minDistToZoneOrders(o,zn);
+      if(d<bestDist&&getSimLoad(zn)+oLoad.total<=CAPACITY_NORMAL){bestDist=d;bestZone=zn;}
+    });
+    if(bestZone){
+      suggestions.push({type:'move',order:o,from:'NON ASSEGNATI',to:bestZone,reason:'Non assegnato: '+o.customer+' \u2192 '+bestZone+' (consegne vicine)'});
+      simZone[o.id]=bestZone;movedOrderIds[o.id]=true;
+    }else if(oLoad.kg>=SPLIT_THRESHOLD_KG&&!o.splitPart){
+      var z1=null,z2=null,d1=Infinity,d2=Infinity;
+      activeZones.forEach(function(zn){var d=minDistToZoneOrders(o,zn);if(d<d1){d2=d1;z2=z1;d1=d;z1=zn;}else if(d<d2){d2=d;z2=zn;}});
+      if(z1&&z2){hasSplitDeroga=true;suggestions.push({type:'split',order:o,from:'NON ASSEGNATI',to:z1,reason:o.customer+' ('+oLoad.kg+'kg). Divisione tra '+z1+' e '+z2});}
+    }else{
+      suggestions.push({type:'driver',order:o,from:'NON ASSEGNATI',to:'',reason:'Impossibile: '+o.customer+'. Aggiungere un corriere.'});
+    }
   });
 
   // Acceptability score (0-100)
