@@ -1050,8 +1050,8 @@ function simulateBalance(nDrivers,totalLoad){
 
   // Score components
   var overloaded=0;
-  activeZones.forEach(function(zn){if((simLoads[zn]||0)>CAPACITY_NORMAL)overloaded++;});
-  var loads=[];activeZones.forEach(function(zn){var l=simLoads[zn]||0;if(l>0)loads.push(l);});
+  activeZones.forEach(function(zn){if(getSimLoad(zn)>CAPACITY_NORMAL)overloaded++;});
+  var loads=[];activeZones.forEach(function(zn){var l=getSimLoad(zn);if(l>0)loads.push(l);});
   var avgLoad=loads.length>0?loads.reduce(function(a,b){return a+b;},0)/loads.length:0;
   var variance=loads.length>0?loads.reduce(function(a,b){return a+Math.pow(b-avgLoad,2);},0)/loads.length:0;
   var stdDev=Math.sqrt(variance);
@@ -1071,7 +1071,7 @@ function simulateBalance(nDrivers,totalLoad){
   if(overloaded>0)statusMsg+=' | '+overloaded+' zone sovraccariche';
 
   var breakdown=[];
-  activeZones.forEach(function(zn){var l=simLoads[zn]||0;if(l>0){var warn=l>CAPACITY_NORMAL?' !!':'';breakdown.push(zn+': '+l+warn);}});
+  activeZones.forEach(function(zn){var l=getSimLoad(zn);if(l>0){var warn=l>CAPACITY_NORMAL?' !!':'';breakdown.push(zn+': '+l+warn);}});
   if(breakdown.length>0)statusMsg+='\n'+breakdown.join(' | ');
 
   return{suggestions:suggestions,statusMsg:statusMsg,statusCls:statusCls,extraZones:simExtraZones,score:score};
