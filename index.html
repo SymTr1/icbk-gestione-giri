@@ -119,8 +119,18 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .ts-badge{display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:500;}
 .ts-badge.am{background:#dbeafe;color:#1e40af;}
 .ts-badge.pm{background:#fef3c7;color:#92400e;}
-.zone-header-sub{font-size:10px;color:#888;display:flex;gap:8px;grid-column:4/5;}
-.zone-header-sub span{white-space:nowrap;}
+/* Period sub-section inside zone */
+.period-header{display:flex;align-items:center;gap:8px;padding:5px 14px;font-size:12px;font-weight:600;border-bottom:1px solid #e0e0e0;cursor:pointer;user-select:none;}
+.period-header:hover{background:#fafafa;}
+.period-header.am-header{background:#f0f6ff;border-left:3px solid #2563eb;}
+.period-header.pm-header{background:#fffbeb;border-left:3px solid #d97706;}
+.period-header .period-label{font-size:13px;}
+.period-header .period-stats{margin-left:auto;display:flex;gap:8px;font-size:11px;color:#666;}
+.period-header .period-stats .ps-item{background:#e8e8e8;padding:1px 6px;border-radius:4px;white-space:nowrap;}
+.period-header .period-stats .ps-warn{color:var(--orange);font-weight:700;}
+.period-header .period-chevron{font-size:12px;color:#aaa;transition:transform .2s;}
+.period-header.collapsed .period-chevron{transform:rotate(-90deg);}
+.period-content.collapsed{display:none;}
 .col-assign{width:160px;}
 .zone-select{width:100%;background:#fff;border:1px solid #ddd;color:#333;padding:2px 4px;border-radius:4px;font-size:11px;cursor:pointer;}
 .zone-select:hover{border-color:var(--accent);}
@@ -321,6 +331,7 @@ function calcCargoByPeriod(zoneOrders){
 var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,dualMode=false,splitOriginals={},customZones=[],ordersSnapshot=null;
 // Filters: each view has its own, dual views have left+right
 var filters={giri:'TUTTI',giriL:'TUTTI',giriR:'TUTTI',map1:'TUTTI',map1L:'TUTTI',map1R:'TUTTI',mz:'TUTTI',mzL:'TUTTI',mzR:'TUTTI'};
+var periodFilter='all'; // 'all', 'am', 'pm'
 try{var c=localStorage.getItem('icbk_geocode_cache');if(c)geocodeCache=JSON.parse(c);}catch(e){}
 
 // ============================================================
@@ -627,6 +638,15 @@ function buildFilterBar(barId,currentFilter,onSelect){
     cBtn.appendChild(document.createTextNode(czn));cBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+cc+')'}));bar.appendChild(cBtn);
   });
   if(grouped[SEDE_ZONE]){var sBtn=el('button',{className:'zone-filter-btn'+(currentFilter===SEDE_ZONE?' active':''),onClick:function(){onSelect(SEDE_ZONE);}});sBtn.appendChild(document.createTextNode('RITIRO'));sBtn.appendChild(el('span',{className:'zf-count',textContent:' ('+grouped[SEDE_ZONE].length+')'}));bar.appendChild(sBtn);}
+  // Period separator + filters
+  bar.appendChild(el('span',{style:{borderLeft:'2px solid #ddd',margin:'0 6px',height:'20px',alignSelf:'center'}}));
+  var amCount=0,pmCount=0;orders.forEach(function(o){if(getTimePeriod(o)==='pm')pmCount++;else amCount++;});
+  [{id:'all',label:'Tutti',count:orders.length},{id:'am',label:'AM',count:amCount},{id:'pm',label:'PM',count:pmCount}].forEach(function(pf){
+    var cls='zone-filter-btn'+(periodFilter===pf.id?' active':'');
+    var btn=el('button',{className:cls,onClick:function(){periodFilter=pf.id;renderAll();}});
+    btn.appendChild(document.createTextNode(pf.label));btn.appendChild(el('span',{className:'zf-count',textContent:' ('+pf.count+')'}));
+    bar.appendChild(btn);
+  });
 }
 
 function getAllZoneNames(){
@@ -639,7 +659,11 @@ function renderZones(containerId,filter,zoneFilter){
   filter=(filter||'').toLowerCase();zoneFilter=zoneFilter||'TUTTI';
   var container=document.getElementById(containerId);while(container.firstChild)container.removeChild(container.firstChild);
   var grouped={},unassigned=[];
-  orders.forEach(function(o){if(filter){var s=(o.customer+' '+o.address+' '+o.products.map(function(p){return p.abbr;}).join(' ')).toLowerCase();if(s.indexOf(filter)===-1)return;}if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);});
+  orders.forEach(function(o){
+    if(filter){var s=(o.customer+' '+o.address+' '+o.products.map(function(p){return p.abbr;}).join(' ')).toLowerCase();if(s.indexOf(filter)===-1)return;}
+    if(periodFilter!=='all'&&getTimePeriod(o)!==periodFilter)return;
+    if(o.zone){if(!grouped[o.zone])grouped[o.zone]=[];grouped[o.zone].push(o);}else unassigned.push(o);
+  });
 
   // Standard zones in display order
   var seen={};
@@ -660,80 +684,121 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom
   var cls='zone-section';if(isUnassigned){cls+=' unassigned';if(zoneOrders.length>0)cls+=' has-orders';}if(isSede)cls+=' sede-zone';if(isCustom)cls+=' custom-zone';
   var section=el('div',{className:cls,'data-zone':zoneName});var cargo=calcCargo(zoneOrders);
 
+  // Zone header (same grid as before)
   var header=el('div',{className:'zone-table-header',onClick:function(e){if(e.target.classList.contains('btn-remove-zone'))return;this.classList.toggle('collapsed');var n=this.nextElementSibling;while(n&&n.classList.contains('zone-table-content')){n.classList.toggle('collapsed');n=n.nextElementSibling;}}});
-  // Grid columns: dot | name | badge | products | colli | kg | poli | chevron
   header.appendChild(el('div',{className:'zone-dot',style:{background:color}}));
-  var titleEl=el('span',{className:'zone-title',textContent:zoneName});
   if(isCustom){
-    var rmBtn=el('button',{className:'btn-remove-zone',title:'Rimuovi zona',textContent:'\u2716',onClick:function(e){e.stopPropagation();removeCustomZone(zoneName);}});
     var titleWrap=el('span',{className:'zone-title',style:{display:'flex',alignItems:'center',gap:'4px'}});
-    titleWrap.appendChild(document.createTextNode(zoneName));titleWrap.appendChild(rmBtn);
+    titleWrap.appendChild(document.createTextNode(zoneName));
+    titleWrap.appendChild(el('button',{className:'btn-remove-zone',title:'Rimuovi zona',textContent:'\u2716',onClick:function(e){e.stopPropagation();removeCustomZone(zoneName);}}));
     header.appendChild(titleWrap);
-  }else{header.appendChild(titleEl);}
+  }else{header.appendChild(el('span',{className:'zone-title',textContent:zoneName}));}
   header.appendChild(el('span',{className:'zone-badge',textContent:zoneOrders.length+' cons'}));
-  // Products
   var prodsDiv=el('div',{className:'zone-products'});
   Object.keys(cargo.productTotals).forEach(function(abbr){prodsDiv.appendChild(el('span',{className:'zp-item',textContent:cargo.productTotals[abbr].qty+'x'+abbr}));});
   header.appendChild(prodsDiv);
-  // Colli, Kg, Polibox - all orange if overloaded
   var totalLoad=cargo.totalColli+cargo.totalPoli;
   var warnCls=totalLoad>150?' warn':'';
   header.appendChild(el('span',{className:'zone-colli'+warnCls,textContent:cargo.totalColli+' colli'}));
   header.appendChild(el('span',{className:'zone-kg'+warnCls,textContent:'Tot '+cargo.totalKg+' kg'}));
-  // AM/PM subtotals (replaces simple poli display)
-  var periodCargo=calcCargoByPeriod(zoneOrders);
-  var amWarn=periodCargo.am.total>150?' warn':'';
-  var pmWarn=periodCargo.pm.total>150?' warn':'';
-  var poliEl=el('span',{className:'zone-poli'+warnCls});
-  if(cargo.totalPoli>0)poliEl.textContent=cargo.totalPoli+' poli';
-  if(periodCargo.am.total>0||periodCargo.pm.total>0){
-    var subDiv=el('span',{style:{fontSize:'10px',color:'#888'}});
-    var parts=[];
-    if(periodCargo.am.total>0)parts.push('AM:'+(periodCargo.am.colli+periodCargo.am.poli));
-    if(periodCargo.pm.total>0)parts.push('PM:'+(periodCargo.pm.colli+periodCargo.pm.poli));
-    subDiv.textContent=parts.join(' ');
-    poliEl.appendChild(document.createTextNode(' '));
-    poliEl.appendChild(subDiv);
-  }
-  header.appendChild(poliEl);
+  header.appendChild(el('span',{className:'zone-poli'+warnCls,textContent:cargo.totalPoli>0?cargo.totalPoli+' poli':''}));
   header.appendChild(el('span',{className:'chevron',textContent:'\u25BC'}));
   section.appendChild(header);
 
-  var tw=el('div',{className:'zone-table-content'});var table=el('table',{className:'orders-table'});var thead=el('thead'),hr=el('tr');
-  [{t:'#',c:'col-num'},{t:'',c:'col-status'},{t:'Fascia',c:'col-timeslot'},{t:'Cliente',c:'col-customer'},{t:'Prodotti',c:'col-products'},{t:'Indirizzo',c:'col-address'},{t:'Driver',c:'col-driver'},{t:'Note',c:'col-notes'},{t:'Importo',c:'col-amount'},{t:'Zona',c:'col-assign'},{t:'',c:'col-actions'}].forEach(function(h){hr.appendChild(el('th',{className:h.c,textContent:h.t}));});
-  thead.appendChild(hr);table.appendChild(thead);var tbody=el('tbody');
-  zoneOrders.forEach(function(order,idx){
+  // Split orders into AM and PM
+  var amOrders=[],pmOrders=[];
+  zoneOrders.forEach(function(o){(getTimePeriod(o)==='pm'?pmOrders:amOrders).push(o);});
+
+  // Sort by timeslot within each period
+  function sortByTime(a,b){
+    var ta=a.timeslot||'',tb=b.timeslot||'';
+    return ta.localeCompare(tb);
+  }
+  amOrders.sort(sortByTime);
+  pmOrders.sort(sortByTime);
+
+  // Build period sub-sections
+  var content=el('div',{className:'zone-table-content'});
+  if(amOrders.length>0)content.appendChild(buildPeriodSection(amOrders,'am',zoneName));
+  if(pmOrders.length>0)content.appendChild(buildPeriodSection(pmOrders,'pm',zoneName));
+  if(amOrders.length===0&&pmOrders.length===0){
+    content.appendChild(el('p',{style:{padding:'10px 14px',color:'#999',fontSize:'12px'},textContent:'Nessuna consegna'}));
+  }
+  section.appendChild(content);
+  return section;
+}
+
+function buildPeriodSection(periodOrders,period,zoneName){
+  var wrap=el('div');
+  var cargo=calcCargo(periodOrders);
+  var totalLoad=cargo.totalColli+cargo.totalPoli;
+  var isWarn=totalLoad>150;
+  var label=period==='pm'?'POMERIGGIO':'MATTINA';
+
+  // Period header
+  var ph=el('div',{className:'period-header '+(period==='pm'?'pm-header':'am-header'),onClick:function(){
+    this.classList.toggle('collapsed');
+    var pc=this.nextElementSibling;if(pc)pc.classList.toggle('collapsed');
+  }});
+  ph.appendChild(el('span',{className:'period-label',textContent:label+' ('+periodOrders.length+')'}));
+  var stats=el('div',{className:'period-stats'});
+  Object.keys(cargo.productTotals).forEach(function(abbr){stats.appendChild(el('span',{className:'ps-item',textContent:cargo.productTotals[abbr].qty+'x'+abbr}));});
+  stats.appendChild(el('span',{className:'ps-item'+(isWarn?' ps-warn':''),textContent:cargo.totalColli+' colli'}));
+  stats.appendChild(el('span',{className:'ps-item'+(isWarn?' ps-warn':''),textContent:cargo.totalKg+'kg'}));
+  if(cargo.totalPoli>0)stats.appendChild(el('span',{className:'ps-item'+(isWarn?' ps-warn':''),textContent:cargo.totalPoli+' poli'}));
+  ph.appendChild(stats);
+  ph.appendChild(el('span',{className:'period-chevron',textContent:'\u25BC'}));
+  wrap.appendChild(ph);
+
+  // Period table
+  var pc=el('div',{className:'period-content'});
+  var table=el('table',{className:'orders-table'});
+  var thead=el('thead'),hr=el('tr');
+  [{t:'#',c:'col-num'},{t:'',c:'col-status'},{t:'Ora',c:'col-timeslot'},{t:'Cliente',c:'col-customer'},{t:'Prodotti',c:'col-products'},{t:'Indirizzo',c:'col-address'},{t:'Driver',c:'col-driver'},{t:'Note',c:'col-notes'},{t:'Importo',c:'col-amount'},{t:'Zona',c:'col-assign'},{t:'',c:'col-actions'}].forEach(function(h){hr.appendChild(el('th',{className:h.c,textContent:h.t}));});
+  thead.appendChild(hr);table.appendChild(thead);
+
+  var tbody=el('tbody');
+  periodOrders.forEach(function(order,idx){
     var tr=el('tr',{draggable:'true','data-order-id':order.id,'data-zone':zoneName,onClick:function(e){if(e.target.tagName==='SELECT'||e.target.tagName==='BUTTON'||e.target.tagName==='INPUT')return;highlightOrderMarker(order.id);}});
     tr.appendChild(el('td',{className:'col-num',textContent:String(idx+1)}));
-    // Status dot
+    // Status
     var statusTd=el('td',{className:'col-status'});
     var st=order.orderStatus||'';
-    if(st==='pending'||st==='confirmed'||st==='delivered'){
-      statusTd.appendChild(el('span',{className:'status-dot '+st,title:st}));
-    }
+    if(st==='pending'||st==='confirmed'||st==='delivered')statusTd.appendChild(el('span',{className:'status-dot '+st,title:st}));
     tr.appendChild(statusTd);
-    // Timeslot
-    var tsPeriod=getTimePeriod(order);
+    // Time (short)
     var tsTd=el('td',{className:'col-timeslot'});
-    tsTd.appendChild(el('span',{className:'ts-badge '+(tsPeriod==='pm'?'pm':'am'),textContent:getTimePeriodLabel(tsPeriod)}));
-    if(order.timeslot){var shortTs=order.timeslot.replace(/^\d+\s*-\s*/,'').substring(0,15);tsTd.appendChild(document.createTextNode(' '));tsTd.appendChild(el('span',{style:{fontSize:'9px',color:'#999'},title:order.timeslot,textContent:shortTs}));}
+    var timeStr=order.timeslot?(order.timeslot.match(/\d{1,2}[:.]\d{2}\s*[/-]\s*\d{1,2}[:.]\d{2}/)||[''])[0]:'';
+    tsTd.textContent=timeStr||'-';
     tr.appendChild(tsTd);
-    // Customer with split badge
+    // Customer
     var custTd=el('td',{className:'col-customer',title:order.customer});
     if(order.splitPart)custTd.appendChild(el('span',{className:'split-badge',textContent:order.splitPart+'/'+order.splitTotal}));
     custTd.appendChild(document.createTextNode(order.customer));
     tr.appendChild(custTd);
-    var ptd=el('td',{className:'col-products'});if(order.products.length===0)ptd.appendChild(el('span',{style:{color:'var(--red)',fontSize:'11px'}},'(nessun prodotto)'));else ptd.appendChild(formatProductsDOM(order.products));tr.appendChild(ptd);
+    // Products
+    var ptd=el('td',{className:'col-products'});
+    if(order.products.length===0)ptd.appendChild(el('span',{style:{color:'var(--red)',fontSize:'11px'}},'(nessun prodotto)'));
+    else ptd.appendChild(formatProductsDOM(order.products));
+    tr.appendChild(ptd);
+    // Address
     tr.appendChild(el('td',{className:'col-address',title:order.address,textContent:order.address}));
     // Driver
     tr.appendChild(el('td',{className:'col-driver',title:order.driverName||'',textContent:order.driverName||'-'}));
-    var ntd=el('td',{className:'col-notes'}),nt=order.instructions||order.note;if(nt)ntd.appendChild(el('span',{className:'notes-text',title:nt,textContent:nt}));tr.appendChild(ntd);
-    var atd=el('td',{className:'col-amount'});if(order.isNP)atd.appendChild(el('span',{className:'np-badge',textContent:'NP'}));else atd.textContent='\u20AC'+order.total.toFixed(2);tr.appendChild(atd);
-    // Zone assign select
+    // Notes
+    var ntd=el('td',{className:'col-notes'}),nt=order.instructions||order.note;
+    if(nt)ntd.appendChild(el('span',{className:'notes-text',title:nt,textContent:nt}));
+    tr.appendChild(ntd);
+    // Amount
+    var atd=el('td',{className:'col-amount'});
+    if(order.isNP)atd.appendChild(el('span',{className:'np-badge',textContent:'NP'}));
+    else atd.textContent='\u20AC'+order.total.toFixed(2);
+    tr.appendChild(atd);
+    // Zone select
     var assignTd=el('td',{className:'col-assign'});
     assignTd.appendChild(buildZoneSelect(order));
     tr.appendChild(assignTd);
-    // Actions: split / undo / re-split
+    // Actions
     var actTd=el('td',{className:'col-actions'});
     if(!order.splitPart){
       actTd.appendChild(el('button',{className:'btn-split',title:'Divisione multipla',textContent:'\u2702',onClick:function(e){e.stopPropagation();openSplitModal(order.id);}}));
@@ -744,10 +809,10 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom
     tr.appendChild(actTd);
     tbody.appendChild(tr);
   });
-  table.appendChild(tbody);tw.appendChild(table);section.appendChild(tw);
-  // Add sort + resize to this table
+  table.appendChild(tbody);pc.appendChild(table);
   initTableFeatures(table);
-  return section;
+  wrap.appendChild(pc);
+  return wrap;
 }
 
 // ============================================================
