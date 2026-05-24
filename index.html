@@ -491,19 +491,22 @@ function showDriverDashboard(){
     title:'Riepilogo Giornata',
     messageEl:bodyEl,
     buttons:[{text:'Conferma e Procedi',cls:'btn-primary',action:function(){
-      var val=document.getElementById('dashDriverSelect').value;
-      document.getElementById('driverCount').value=val;
-      showToast('Corrieri impostati: '+val);
+      var sel=document.getElementById('dashDriverSelect');
+      if(!sel||sel.value===''){showToast('Seleziona il numero di corrieri');return false;}
+      document.getElementById('driverCount').value=sel.value;
+      showToast('Corrieri impostati: '+sel.value);
     }}]
   });
 
-  // Populate driver select after dialog is shown
+  // Populate driver select: first option is placeholder (not selectable as value)
   setTimeout(function(){
     var sel=document.getElementById('dashDriverSelect');
     if(!sel)return;
+    var placeholder=document.createElement('option');
+    placeholder.value='';placeholder.textContent='-- Seleziona --';placeholder.disabled=true;placeholder.selected=true;
+    sel.appendChild(placeholder);
     for(var i=1;i<=10;i++){
       var opt=document.createElement('option');opt.value=i;opt.textContent=i+(i===suggestedDrivers?' (consigliato)':'');
-      if(i===suggestedDrivers)opt.selected=true;
       sel.appendChild(opt);
     }
   },50);
@@ -1564,8 +1567,8 @@ function showDialog(opts){
   while(footer.firstChild)footer.removeChild(footer.firstChild);
   (opts.buttons||[]).forEach(function(b){
     footer.appendChild(el('button',{className:'btn '+(b.cls||''),textContent:b.text,onClick:function(){
+      if(b.action){var result=b.action(inputEl.value);if(result===false)return;}// return false to prevent close
       dlg.classList.remove('active');
-      if(b.action)b.action(inputEl.value);
     }}));
   });
   dlg.classList.add('active');
