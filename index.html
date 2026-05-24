@@ -455,30 +455,37 @@ function applyResolve(order,itemEl,md,lat,lng){order.lat=lat;order.lng=lng;order
 function finishResolve(){document.getElementById('resolveOverlay').classList.remove('active');resolveMaps.forEach(function(md){if(md.map)md.map.remove();});resolveMaps=[];ordersSnapshot=JSON.stringify(orders);document.getElementById('mainView').classList.add('active');renderAll();showDriverDashboard();}
 
 function showDriverDashboard(){
-  // Count orders per zone
-  var zoneCounts={},totalOrders=0,totalColli=0,unassigned=0;
+  var zoneCounts={},totalOrders=0,unassigned=0,sedeCount=0;
+  var amColli=0,pmColli=0,amOrders=0,pmOrders=0;
   orders.forEach(function(o){
-    if(o.isSede)return;
+    if(o.isSede){sedeCount++;return;}
     totalOrders++;
-    var load=getOrderLoad(o);totalColli+=load.total;
+    var load=getOrderLoad(o);
+    if(getTimePeriod(o)==='pm'){pmColli+=load.total;pmOrders++;}
+    else{amColli+=load.total;amOrders++;}
     if(!o.zone){unassigned++;}
-    else{if(!zoneCounts[o.zone])zoneCounts[o.zone]=0;zoneCounts[o.zone]++;}
+    else if(o.zone!==SEDE_ZONE){if(!zoneCounts[o.zone])zoneCounts[o.zone]=0;zoneCounts[o.zone]++;}
   });
   var zoneCount=Object.keys(zoneCounts).length;
-  var suggestedDrivers=Math.max(zoneCount,Math.ceil(totalColli/150));
+  // Drivers = max between AM and PM needs (bottleneck turno)
+  var amDrivers=Math.ceil(amColli/150);
+  var pmDrivers=Math.ceil(pmColli/150);
+  var suggestedDrivers=Math.max(amDrivers,pmDrivers,1);
   if(suggestedDrivers>10)suggestedDrivers=10;
 
   var msgLines=[];
-  msgLines.push('Ordini caricati: '+totalOrders);
-  msgLines.push('Colli totali: '+totalColli);
-  msgLines.push('Zone con ordini: '+zoneCount);
-  if(unassigned>0)msgLines.push('Non assegnati: '+unassigned);
+  msgLines.push('Ordini in consegna: '+totalOrders);
+  if(sedeCount>0)msgLines.push('Ritiri in ditta: '+sedeCount);
   msgLines.push('');
+  msgLines.push('MATTINA: '+amOrders+' ordini | '+amColli+' colli \u2192 '+amDrivers+' corrieri');
+  msgLines.push('POMERIGGIO: '+pmOrders+' ordini | '+pmColli+' colli \u2192 '+pmDrivers+' corrieri');
+  msgLines.push('');
+  if(unassigned>0)msgLines.push('\u26a0 Non assegnati: '+unassigned);
   ZONE_DISPLAY_ORDER.forEach(function(zn){
     if(zoneCounts[zn])msgLines.push(zn+': '+zoneCounts[zn]+' consegne');
   });
   msgLines.push('');
-  msgLines.push('Corrieri suggeriti: '+suggestedDrivers+' ('+totalColli+' colli / 150 max)');
+  msgLines.push('Corrieri suggeriti: '+suggestedDrivers+' (turno pi\u00f9 carico: '+(amColli>=pmColli?'mattina '+amColli:'pomeriggio '+pmColli)+' colli)');
 
   var bodyEl=el('div');
   msgLines.forEach(function(l){bodyEl.appendChild(el('p',{style:{margin:'2px 0',fontSize:'13px'},textContent:l}));});
@@ -2059,7 +2066,7 @@ function updateRouteZoneSelect(){
     if(grouped[zn]){var opt=document.createElement('option');opt.value=zn;opt.textContent=zn+' ('+grouped[zn]+')';sel.appendChild(opt);}
   });
   if(unCount>0){var opt=document.createElement('option');opt.value='NON ASSEGNATI';opt.textContent='NON ASSEGNATI ('+unCount+')';sel.appendChild(opt);}
-  if(grouped[SEDE_ZONE]){var opt=document.createElement('option');opt.value=SEDE_ZONE;opt.textContent='RITIRO ('+grouped[SEDE_ZONE]+')';sel.appendChild(opt);}
+  // RITIRO IN DITTA excluded from Routes (pickup at depot, no delivery route)
 }
 
 var currentRouteOrder=null; // array of order ids in manual order
