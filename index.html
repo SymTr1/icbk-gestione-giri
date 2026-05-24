@@ -808,6 +808,14 @@ function getZoneCentroid(zoneName){
 }
 
 function runBalancing(){
+  // ALWAYS start from snapshot to avoid cumulative drift
+  if(ordersSnapshot){
+    orders=JSON.parse(ordersSnapshot);
+    customZones=customZones.filter(function(cz){return cz.indexOf('DRIVER ')!==0;});
+    splitOriginals={};
+    expandedZones={};
+  }
+
   var nDrivers=parseInt(document.getElementById('driverCount').value)||5;
 
   // Calculate total load (all assigned orders excl sede)
@@ -917,15 +925,15 @@ function simulateBalance(nDrivers,totalLoad){
     var cluster=[{order:seed,from:maxZone}];
     var clusterLoad=getOrderLoad(seed).total;
     movedOrderIds[seed.id]=true;
+    // Track how much we take from each zone (don't take more than excess)
+    var takenFromZone={};takenFromZone[maxZone]=clusterLoad;
 
-    // Candidates: unassigned + orders from any zone above target (or heaviest)
+    // Candidates: unassigned + orders from zones above target
     var allCandidates=[];
     orders.forEach(function(o){
       if(o.id===seed.id||!o.lat||!o.lng||o.isSede||movedOrderIds[o.id])return;
       var oz=simZone[o.id];
       if(!oz){allCandidates.push({order:o,from:'NON ASSEGNATI'});return;}
-      // Include orders from zones that are above the new target
-      // (with N drivers, target is lower so most zones qualify)
       var zl=getSimLoad(oz);
       if(zl>targetPerDriver){allCandidates.push({order:o,from:oz});}
     });
@@ -942,11 +950,17 @@ function simulateBalance(nDrivers,totalLoad){
         if(minD<bestDist){bestDist=minD;bestIdx=ci;}
       }
       if(bestIdx===-1)break;
-      // Only take if reasonably close (within ~5km, ~0.05 degrees)
-      if(bestDist>0.05)break;
+      if(bestDist>0.05)break; // max ~5km radius
       var next=allCandidates[bestIdx];
       var nLoad=getOrderLoad(next.order).total;
       if(clusterLoad+nLoad>CAPACITY_NORMAL){allCandidates.splice(bestIdx,1);continue;}
+      // Don't take too much from one zone (leave at least targetPerDriver)
+      if(next.from!=='NON ASSEGNATI'){
+        var alreadyTaken=takenFromZone[next.from]||0;
+        var zoneCurrentLoad=getSimLoad(next.from);
+        if(zoneCurrentLoad-alreadyTaken-nLoad<targetPerDriver*0.7){allCandidates.splice(bestIdx,1);continue;}
+        takenFromZone[next.from]=(takenFromZone[next.from]||0)+nLoad;
+      }
       cluster.push(next);allCandidates.splice(bestIdx,1);
       movedOrderIds[next.order.id]=true;
       clusterLoad+=nLoad;
@@ -961,59 +975,65 @@ function simulateBalance(nDrivers,totalLoad){
   // ============================================================
   // PHASE 2: Fix overloaded zones - swap only TRUE border orders
   // ============================================================
-  var standardZones=activeZones.filter(function(zn){return simExtraZones.indexOf(zn)===-1;});
-  standardZones.forEach(function(zn){
-    if(getSimLoad(zn)<=CAPACITY_NORMAL)return;
-    var adjacents=(ZONE_ADJACENCY[zn]||[]).filter(function(az){return activeZones.indexOf(az)!==-1;});
+  // Phase 2: Fix overloaded zones - multiple passes, border swaps + splits
+  var maxPasses=3;
+  for(var pass=0;pass<maxPasses;pass++){
+    var anyMoved=false;
+    activeZones.forEach(function(zn){
+      var currentLoad=getSimLoad(zn);
+      if(currentLoad<=CAPACITY_NORMAL)return;
 
-    // Get orders, sorted by: closest to adjacent zone orders (true border)
-    var zOrders=getSimZoneOrders(zn).filter(function(o){return o.lat&&o.lng;});
-    // For each order, find how close it is to the nearest order in ANY adjacent zone
-    var orderScores=zOrders.map(function(o){
-      var bestAdjZone=null,bestAdjDist=Infinity;
-      adjacents.forEach(function(az){
-        var d=minDistToZoneOrders(o,az);
-        if(d<bestAdjDist){bestAdjDist=d;bestAdjZone=az;}
+      // All possible targets: adjacent zones + driver extra zones
+      var targets=(ZONE_ADJACENCY[zn]||[]).filter(function(az){return activeZones.indexOf(az)!==-1;});
+      activeZones.forEach(function(az){if(az.indexOf('DRIVER ')===0&&targets.indexOf(az)===-1)targets.push(az);});
+
+      var zOrders=getSimZoneOrders(zn).filter(function(o){return o.lat&&o.lng;});
+
+      // Score each order: how close is it to each target zone's orders
+      var orderScores=[];
+      zOrders.forEach(function(o){
+        targets.forEach(function(tz){
+          var d=minDistToZoneOrders(o,tz);
+          if(d<Infinity)orderScores.push({order:o,target:tz,dist:d});
+        });
       });
-      return{order:o,adjZone:bestAdjZone,adjDist:bestAdjDist};
-    });
-    // Sort: closest to adjacent zone first (true border orders)
-    orderScores.sort(function(a,b){return a.adjDist-b.adjDist;});
+      // Sort by distance: closest cross-zone pairs first
+      orderScores.sort(function(a,b){return a.dist-b.dist;});
 
-    orderScores.forEach(function(os){
-      if(getSimLoad(zn)<=CAPACITY_NORMAL)return;
-      if(movedOrderIds[os.order.id])return;
-      if(!os.adjZone)return;
-      var oLoad=getOrderLoad(os.order).total;
-      var adjLoad=getSimLoad(os.adjZone);
-      if(adjLoad+oLoad>CAPACITY_NORMAL)return;
-      // Only move if this order is genuinely closer to adj zone orders than to own zone avg
-      var distToOwn=minDistToZoneOrders(os.order,zn);
-      // Exclude self from own zone distance (it's 0)
-      var ownOrders=getSimZoneOrders(zn).filter(function(o2){return o2.id!==os.order.id&&o2.lat&&o2.lng;});
-      var avgDistOwn=0;
-      if(ownOrders.length>0){
-        var sumD=0;ownOrders.forEach(function(o2){sumD+=distanceBetween(os.order.lat,os.order.lng,o2.lat,o2.lng);});
-        avgDistOwn=sumD/ownOrders.length;
-      }
-      // Move only if closer to adjacent than average of own zone
-      if(os.adjDist<avgDistOwn){
-        suggestions.push({type:'move',order:os.order,from:zn,to:os.adjZone,reason:zn+' sovraccarica: '+os.order.customer+' pi\u00f9 vicino a consegne di '+os.adjZone});
+      orderScores.forEach(function(os){
+        if(getSimLoad(zn)<=CAPACITY_NORMAL)return;
+        if(movedOrderIds[os.order.id])return;
+        var oLoad=getOrderLoad(os.order).total;
+        var targetLoad=getSimLoad(os.target);
+        // Target must have space
+        if(targetLoad+oLoad>CAPACITY_NORMAL)return;
+        // For border swaps between standard zones: prefer orders genuinely at border
+        // But if zone is HEAVILY overloaded (>180), relax this check
+        if(currentLoad<=CAPACITY_SPLIT_DEROGA&&zn.indexOf('DRIVER ')===-1&&os.target.indexOf('DRIVER ')===-1){
+          var ownOrders=getSimZoneOrders(zn).filter(function(o2){return o2.id!==os.order.id&&o2.lat&&o2.lng;});
+          if(ownOrders.length>0){
+            var sumD=0;ownOrders.forEach(function(o2){sumD+=distanceBetween(os.order.lat,os.order.lng,o2.lat,o2.lng);});
+            if(os.dist>=sumD/ownOrders.length)return; // not a border order
+          }
+        }
+        suggestions.push({type:'move',order:os.order,from:zn,to:os.target,reason:zn+' sovraccarica: '+os.order.customer+' \u2192 '+os.target+' (prossimit\u00e0)'});
         movedOrderIds[os.order.id]=true;
-        simZone[os.order.id]=os.adjZone;
+        simZone[os.order.id]=os.target;
+        anyMoved=true;
+      });
+
+      // Split big orders if still heavily overloaded
+      if(getSimLoad(zn)>CAPACITY_SPLIT_DEROGA){
+        getSimZoneOrders(zn).filter(function(o){return getOrderLoad(o).kg>=SPLIT_THRESHOLD_KG&&!o.splitPart&&!movedOrderIds[o.id]&&o.lat&&o.lng;}).forEach(function(o){
+          if(getSimLoad(zn)<=CAPACITY_SPLIT_DEROGA)return;
+          var bestTarget=null,bestDist=Infinity;
+          targets.forEach(function(tz){var d=minDistToZoneOrders(o,tz);if(d<bestDist&&getSimLoad(tz)<CAPACITY_NORMAL){bestDist=d;bestTarget=tz;}});
+          if(bestTarget){hasSplitDeroga=true;suggestions.push({type:'split',order:o,from:zn,to:bestTarget,reason:o.customer+' ('+getOrderLoad(o).kg+'kg). Divisione tra '+zn+' e '+bestTarget+' (deroga 180)'});}
+        });
       }
     });
-
-    // Split big orders if still overloaded
-    if(getSimLoad(zn)>CAPACITY_NORMAL){
-      zOrders.filter(function(o){return getOrderLoad(o).kg>=SPLIT_THRESHOLD_KG&&!o.splitPart&&!movedOrderIds[o.id];}).forEach(function(o){
-        if(getSimLoad(zn)<=CAPACITY_SPLIT_DEROGA)return;
-        var bestAdj=null,bestDist=Infinity;
-        adjacents.forEach(function(az){var d=minDistToZoneOrders(o,az);if(d<bestDist){bestDist=d;bestAdj=az;}});
-        if(bestAdj){hasSplitDeroga=true;suggestions.push({type:'split',order:o,from:zn,to:bestAdj,reason:o.customer+' ('+getOrderLoad(o).kg+'kg) sovraccarico '+zn+'. Divisione tra '+zn+' e '+bestAdj+' (deroga 180)'});}
-      });
-    }
-  });
+    if(!anyMoved)break; // no more improvements possible
+  }
 
   // ============================================================
   // PHASE 3: Assign unassigned - to zone with closest existing orders
