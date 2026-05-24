@@ -109,6 +109,18 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .col-notes{min-width:60px;max-width:140px;}
 .col-amount{width:70px;text-align:right;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .col-actions{width:52px;text-align:center;white-space:nowrap;}
+.col-timeslot{width:55px;font-size:11px;white-space:nowrap;}
+.col-driver{width:70px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.col-status{width:22px;text-align:center;}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.status-dot.pending{background:#f59e0b;}
+.status-dot.confirmed{background:#2563eb;}
+.status-dot.delivered{background:#16a34a;}
+.ts-badge{display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:500;}
+.ts-badge.am{background:#dbeafe;color:#1e40af;}
+.ts-badge.pm{background:#fef3c7;color:#92400e;}
+.zone-header-sub{font-size:10px;color:#888;display:flex;gap:8px;grid-column:4/5;}
+.zone-header-sub span{white-space:nowrap;}
 .col-assign{width:160px;}
 .zone-select{width:100%;background:#fff;border:1px solid #ddd;color:#333;padding:2px 4px;border-radius:4px;font-size:11px;cursor:pointer;}
 .zone-select:hover{border-color:var(--accent);}
@@ -271,6 +283,40 @@ var ALL_ZONE_NAMES=ZONES.map(function(z){return z.name;});
 var SEDE_ZONE='RITIRO IN DITTA';
 function isSedeAddress(a){a=a.toLowerCase();return/via\s+teramo\s+9/i.test(a)||/via\s+(eugenio\s+)?montale\s+(27|29)/i.test(a);}
 
+// Timeslot parsing: returns 'am' or 'pm'
+function getTimePeriod(order){
+  var ts=(order.timeslot||'').toLowerCase();
+  // Check by timeslot name patterns
+  if(/mattina|morning/i.test(ts))return 'am';
+  if(/pomeriggio|afternoon/i.test(ts))return 'pm';
+  // Check by time: parse HH:MM, if start hour >= 14 -> pm
+  var timeMatch=ts.match(/(\d{1,2})[:.:](\d{2})/);
+  if(timeMatch){var h=parseInt(timeMatch[1]);if(h>=14)return 'pm';}
+  // Check delivery_time field
+  var dt=(order.deliveryTime||'').toLowerCase();
+  var dtMatch=dt.match(/(\d{1,2})[:.:](\d{2})/);
+  if(dtMatch){var h2=parseInt(dtMatch[1]);if(h2>=14)return 'pm';}
+  // Default to morning if no info
+  return 'am';
+}
+
+function getTimePeriodLabel(period){return period==='pm'?'PM':'AM';}
+
+// Calc cargo split by AM/PM
+function calcCargoByPeriod(zoneOrders){
+  var am={colli:0,poli:0},pm={colli:0,poli:0};
+  zoneOrders.forEach(function(o){
+    var p=getTimePeriod(o);
+    var target=p==='pm'?pm:am;
+    o.products.forEach(function(pr){
+      if(pr.isPoli)target.poli+=pr.quantity;
+      else target.colli+=pr.colli;
+    });
+  });
+  am.total=am.colli+am.poli;pm.total=pm.colli+pm.poli;
+  return{am:am,pm:pm};
+}
+
 // ============================================================
 var orders=[],geocodeCache={},mapConsegne=null,mapZone=null,mapConsegneMarkers=[],mapZoneMarkers=[],resolveMaps=[],splitOrderId=null,dualMode=false,splitOriginals={},customZones=[],ordersSnapshot=null;
 // Filters: each view has its own, dual views have left+right
@@ -280,7 +326,7 @@ try{var c=localStorage.getItem('icbk_geocode_cache');if(c)geocodeCache=JSON.pars
 // ============================================================
 // PARSING + CARGO + GEOCODING (unchanged logic)
 // ============================================================
-function parseCSV(text){var lines=[],cur='',inQ=false;for(var i=0;i<text.length;i++){var ch=text[i];if(ch==='"')inQ=!inQ;if((ch==='\n'||ch==='\r')&&!inQ){if(cur.trim())lines.push(cur);cur='';if(ch==='\r'&&text[i+1]==='\n')i++;}else cur+=ch;}if(cur.trim())lines.push(cur);var results=[];for(var idx=1;idx<lines.length;idx++){var f=splitCSV(lines[idx],';');if(f.length<9)continue;var products=[];try{products=JSON.parse(f[2].replace(/""/g,'"'));}catch(e1){try{products=JSON.parse(f[2]);}catch(e2){try{products=JSON.parse(f[2].replace(/^"|"$/g,'').replace(/""/g,'"'));}catch(e3){}}}var dp=[];for(var pi=0;pi<products.length;pi++){var p=products[pi];if(SERVICE_PRODUCTS.has(p.name))continue;dp.push({name:p.name,quantity:p.quantity,abbr:PRODUCT_ABBREVIATIONS[p.name]||p.name,step:PRODUCT_STEPS[p.name]||1,colli:Math.ceil(p.quantity/(PRODUCT_STEPS[p.name]||1)),isPoli:POLIBOX_PRODUCTS.has(p.name),isClear:CLEAR_PRODUCTS.has(p.name)});}var customer=f[1].trim(),address=(f[4]||'').trim(),forcedZone=isSedeAddress(address)?SEDE_ZONE:null;results.push({id:f[0],customer:customer,products:dp,date:f[3],address:address,contact:(f[5]||'').trim(),instructions:(f[6]||'').trim(),note:(f[7]||'').trim(),total:parseFloat(f[8])||0,isNP:NP_CLIENTS.has(customer.toUpperCase()),zone:forcedZone,lat:null,lng:null,isSede:!!forcedZone,splitPart:null,splitTotal:null,originalId:null});}return results;}
+function parseCSV(text){var lines=[],cur='',inQ=false;for(var i=0;i<text.length;i++){var ch=text[i];if(ch==='"')inQ=!inQ;if((ch==='\n'||ch==='\r')&&!inQ){if(cur.trim())lines.push(cur);cur='';if(ch==='\r'&&text[i+1]==='\n')i++;}else cur+=ch;}if(cur.trim())lines.push(cur);var results=[];for(var idx=1;idx<lines.length;idx++){var f=splitCSV(lines[idx],';');if(f.length<9)continue;var products=[];try{products=JSON.parse(f[2].replace(/""/g,'"'));}catch(e1){try{products=JSON.parse(f[2]);}catch(e2){try{products=JSON.parse(f[2].replace(/^"|"$/g,'').replace(/""/g,'"'));}catch(e3){}}}var dp=[];for(var pi=0;pi<products.length;pi++){var p=products[pi];if(SERVICE_PRODUCTS.has(p.name))continue;dp.push({name:p.name,quantity:p.quantity,abbr:PRODUCT_ABBREVIATIONS[p.name]||p.name,step:PRODUCT_STEPS[p.name]||1,colli:Math.ceil(p.quantity/(PRODUCT_STEPS[p.name]||1)),isPoli:POLIBOX_PRODUCTS.has(p.name),isClear:CLEAR_PRODUCTS.has(p.name)});}var customer=f[1].trim(),address=(f[4]||'').trim(),forcedZone=isSedeAddress(address)?SEDE_ZONE:null;results.push({id:f[0],customer:customer,products:dp,date:f[3],address:address,contact:(f[5]||'').trim(),instructions:(f[6]||'').trim(),note:(f[7]||'').trim(),total:parseFloat(f[8])||0,isNP:NP_CLIENTS.has(customer.toUpperCase()),zone:forcedZone,lat:null,lng:null,isSede:!!forcedZone,splitPart:null,splitTotal:null,originalId:null,driverName:'',orderStatus:'',timeslot:'',deliveryTime:''});}return results;}
 function splitCSV(line,sep){var f=[],cur='',inQ=false;for(var i=0;i<line.length;i++){var ch=line[i];if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(ch===sep&&!inQ){f.push(cur);cur='';}else cur+=ch;}f.push(cur);return f;}
 function calcCargo(arr){var pt={},tc=0,tk=0,tp=0;arr.forEach(function(o){o.products.forEach(function(p){if(!pt[p.abbr])pt[p.abbr]={qty:0,colli:0,isPoli:p.isPoli};pt[p.abbr].qty+=p.quantity;pt[p.abbr].colli+=p.colli;if(p.isPoli)tp+=p.quantity;else{tc+=p.colli;tk+=p.colli*10;}});});return{productTotals:pt,totalColli:tc,totalKg:tk,totalPoli:tp};}
 function cleanAddress(a){return a.replace(/\(MI\)/gi,'Milano').replace(/\(Milano\)/gi,'Milano').replace(/, undefined/gi,'').replace(/undefined/gi,'').replace(/Metropolitan City of Milan, Italy/gi,'').trim().replace(/,\s*,/g,',').replace(/,\s*$/,'');}
@@ -634,16 +680,44 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom
   var warnCls=totalLoad>150?' warn':'';
   header.appendChild(el('span',{className:'zone-colli'+warnCls,textContent:cargo.totalColli+' colli'}));
   header.appendChild(el('span',{className:'zone-kg'+warnCls,textContent:'Tot '+cargo.totalKg+' kg'}));
-  header.appendChild(el('span',{className:'zone-poli'+warnCls,textContent:cargo.totalPoli>0?cargo.totalPoli+' poli':''}));
+  // AM/PM subtotals (replaces simple poli display)
+  var periodCargo=calcCargoByPeriod(zoneOrders);
+  var amWarn=periodCargo.am.total>150?' warn':'';
+  var pmWarn=periodCargo.pm.total>150?' warn':'';
+  var poliEl=el('span',{className:'zone-poli'+warnCls});
+  if(cargo.totalPoli>0)poliEl.textContent=cargo.totalPoli+' poli';
+  if(periodCargo.am.total>0||periodCargo.pm.total>0){
+    var subDiv=el('span',{style:{fontSize:'10px',color:'#888'}});
+    var parts=[];
+    if(periodCargo.am.total>0)parts.push('AM:'+(periodCargo.am.colli+periodCargo.am.poli));
+    if(periodCargo.pm.total>0)parts.push('PM:'+(periodCargo.pm.colli+periodCargo.pm.poli));
+    subDiv.textContent=parts.join(' ');
+    poliEl.appendChild(document.createTextNode(' '));
+    poliEl.appendChild(subDiv);
+  }
+  header.appendChild(poliEl);
   header.appendChild(el('span',{className:'chevron',textContent:'\u25BC'}));
   section.appendChild(header);
 
   var tw=el('div',{className:'zone-table-content'});var table=el('table',{className:'orders-table'});var thead=el('thead'),hr=el('tr');
-  [{t:'#',c:'col-num'},{t:'Cliente',c:'col-customer'},{t:'Prodotti',c:'col-products'},{t:'Indirizzo',c:'col-address'},{t:'Note',c:'col-notes'},{t:'Importo',c:'col-amount'},{t:'Zona',c:'col-assign'},{t:'',c:'col-actions'}].forEach(function(h){hr.appendChild(el('th',{className:h.c,textContent:h.t}));});
+  [{t:'#',c:'col-num'},{t:'',c:'col-status'},{t:'Fascia',c:'col-timeslot'},{t:'Cliente',c:'col-customer'},{t:'Prodotti',c:'col-products'},{t:'Indirizzo',c:'col-address'},{t:'Driver',c:'col-driver'},{t:'Note',c:'col-notes'},{t:'Importo',c:'col-amount'},{t:'Zona',c:'col-assign'},{t:'',c:'col-actions'}].forEach(function(h){hr.appendChild(el('th',{className:h.c,textContent:h.t}));});
   thead.appendChild(hr);table.appendChild(thead);var tbody=el('tbody');
   zoneOrders.forEach(function(order,idx){
     var tr=el('tr',{draggable:'true','data-order-id':order.id,'data-zone':zoneName,onClick:function(e){if(e.target.tagName==='SELECT'||e.target.tagName==='BUTTON'||e.target.tagName==='INPUT')return;highlightOrderMarker(order.id);}});
     tr.appendChild(el('td',{className:'col-num',textContent:String(idx+1)}));
+    // Status dot
+    var statusTd=el('td',{className:'col-status'});
+    var st=order.orderStatus||'';
+    if(st==='pending'||st==='confirmed'||st==='delivered'){
+      statusTd.appendChild(el('span',{className:'status-dot '+st,title:st}));
+    }
+    tr.appendChild(statusTd);
+    // Timeslot
+    var tsPeriod=getTimePeriod(order);
+    var tsTd=el('td',{className:'col-timeslot'});
+    tsTd.appendChild(el('span',{className:'ts-badge '+(tsPeriod==='pm'?'pm':'am'),textContent:getTimePeriodLabel(tsPeriod)}));
+    if(order.timeslot){var shortTs=order.timeslot.replace(/^\d+\s*-\s*/,'').substring(0,15);tsTd.appendChild(document.createTextNode(' '));tsTd.appendChild(el('span',{style:{fontSize:'9px',color:'#999'},title:order.timeslot,textContent:shortTs}));}
+    tr.appendChild(tsTd);
     // Customer with split badge
     var custTd=el('td',{className:'col-customer',title:order.customer});
     if(order.splitPart)custTd.appendChild(el('span',{className:'split-badge',textContent:order.splitPart+'/'+order.splitTotal}));
@@ -651,6 +725,8 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom
     tr.appendChild(custTd);
     var ptd=el('td',{className:'col-products'});if(order.products.length===0)ptd.appendChild(el('span',{style:{color:'var(--red)',fontSize:'11px'}},'(nessun prodotto)'));else ptd.appendChild(formatProductsDOM(order.products));tr.appendChild(ptd);
     tr.appendChild(el('td',{className:'col-address',title:order.address,textContent:order.address}));
+    // Driver
+    tr.appendChild(el('td',{className:'col-driver',title:order.driverName||'',textContent:order.driverName||'-'}));
     var ntd=el('td',{className:'col-notes'}),nt=order.instructions||order.note;if(nt)ntd.appendChild(el('span',{className:'notes-text',title:nt,textContent:nt}));tr.appendChild(ntd);
     var atd=el('td',{className:'col-amount'});if(order.isNP)atd.appendChild(el('span',{className:'np-badge',textContent:'NP'}));else atd.textContent='\u20AC'+order.total.toFixed(2);tr.appendChild(atd);
     // Zone assign select
