@@ -2000,69 +2000,135 @@ function renderRoute(){
   });
   // Filter by period
   if(rPeriod!=='all')zoneOrders=zoneOrders.filter(function(o){return getTimePeriod(o)===rPeriod;});
-  // Sort by timeslot
-  zoneOrders.sort(function(a,b){return(a.timeslot||'').localeCompare(b.timeslot||'');});
+  // Get geo orders only
+  var geoOrders=zoneOrders.filter(function(o){return o.lat&&o.lng;});
 
-  // Stats
+  // Stats (initial, updated after routing)
   var cargo=calcCargo(zoneOrders);
   var statsEl=document.getElementById('routeStats');
-  if(statsEl)statsEl.textContent=zoneOrders.length+' cons | '+(cargo.totalColli+cargo.totalPoli)+' colli | '+cargo.totalKg+'kg';
+  var zoneColor=ZONE_COLORS[selectedZone]||'#2563eb';
 
-  // Clear markers
+  // Clear markers + route
   routeMarkers.forEach(function(m){routeMap.removeLayer(m);});routeMarkers.length=0;
+  if(window._routeLine){routeMap.removeLayer(window._routeLine);window._routeLine=null;}
 
-  // Add all OTHER orders as gray dots
+  // Departure point
+  var depLat=45.3833,depLng=9.2167; // Opera default
+  var depAddr=document.getElementById('routeDeparture').value;
+  var depCache=geocodeCache[depAddr.toLowerCase().trim()];
+  if(depCache){depLat=depCache.lat;depLng=depCache.lng;}
+
+  // Add gray dots for OTHER orders
   orders.forEach(function(o){
     if(!o.lat||!o.lng)return;
-    var isSelected=(selectedZone==='NON ASSEGNATI'?!o.zone:o.zone===selectedZone);
-    if(isSelected)return; // skip, will add colored below
+    var isSel=(selectedZone==='NON ASSEGNATI'?!o.zone:o.zone===selectedZone);
+    if(isSel)return;
     var m=L.circleMarker([o.lat,o.lng],{radius:4,color:'#ccc',weight:1,fillColor:'#ddd',fillOpacity:.5}).addTo(routeMap);
-    m.bindPopup(buildPopupContent(o),{maxWidth:300});
-    m._orderId=o.id;
+    m.bindPopup(buildPopupContent(o),{maxWidth:300});m._orderId=o.id;
     m.on('click',function(){highlightRouteOrder(o.id);});
     routeMarkers.push(m);
   });
 
-  // Add selected zone orders as colored markers with numbers
-  var zoneColor=ZONE_COLORS[selectedZone]||'#2563eb';
-  zoneOrders.forEach(function(o,idx){
-    if(!o.lat||!o.lng)return;
-    var period=getTimePeriod(o);
-    var marker;
-    if(period==='pm'){
-      marker=L.marker([o.lat,o.lng],{icon:L.divIcon({className:'',html:'<div style="width:14px;height:14px;background:'+zoneColor+';transform:rotate(45deg);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>',iconSize:[16,16],iconAnchor:[8,8]})});
-    }else{
-      marker=L.circleMarker([o.lat,o.lng],{radius:8,color:'#fff',weight:2,fillColor:zoneColor,fillOpacity:.9});
-    }
-    marker.addTo(routeMap);
-    marker.bindPopup('<b>#'+(idx+1)+'</b> '+buildPopupContent(o),{maxWidth:300});
-    marker._orderId=o.id;
-    marker.on('click',function(){highlightRouteOrder(o.id);});
-    routeMarkers.push(marker);
-  });
-
-  // Draw route line (departure -> stops in order)
-  if(window._routeLine){routeMap.removeLayer(window._routeLine);window._routeLine=null;}
-  var routePoints=[];
-  // Departure point
-  var depAddr=document.getElementById('routeDeparture').value;
-  var depCache=geocodeCache[depAddr.toLowerCase().trim()];
-  if(depCache)routePoints.push([depCache.lat,depCache.lng]);
-  else routePoints.push([45.3833,9.2167]); // Opera default
-  // Add order points
-  zoneOrders.forEach(function(o){if(o.lat&&o.lng)routePoints.push([o.lat,o.lng]);});
-  if(routePoints.length>1){
-    window._routeLine=L.polyline(routePoints,{color:zoneColor,weight:2,opacity:.5,dashArray:'8 4'}).addTo(routeMap);
+  // If no geo orders, just show stats and return
+  if(geoOrders.length===0){
+    if(statsEl)statsEl.textContent=zoneOrders.length+' cons | 0 con coordinate';
+    buildRouteList(zoneOrders,zoneColor,[]);
+    return;
   }
-  // Add departure marker
-  var depMarker=L.circleMarker(routePoints[0],{radius:10,color:zoneColor,weight:3,fillColor:'#fff',fillOpacity:1}).addTo(routeMap);
-  depMarker.bindTooltip('PARTENZA',{permanent:true,direction:'top',className:'',offset:[0,-12]});
-  routeMarkers.push(depMarker);
 
-  // Build order list (compact: line1=period+customer+products+time, line2=address)
+  // Build OSRM coordinates string: departure + all stops
+  var coords=depLng+','+depLat;
+  geoOrders.forEach(function(o){coords+=';'+o.lng+','+o.lat;});
+
+  // Call OSRM Trip API for optimal route
+  if(statsEl)statsEl.textContent='Calcolo percorso...';
+  fetch('https://router.project-osrm.org/trip/v1/driving/'+coords+'?source=first&roundtrip=false&overview=full&geometries=geojson')
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.code!=='Ok'||!data.trips||data.trips.length===0){
+        // Fallback: use original order with straight lines
+        if(statsEl)statsEl.textContent=zoneOrders.length+' cons | routing non disponibile';
+        drawFallbackRoute(geoOrders,zoneColor,depLat,depLng);
+        buildRouteList(zoneOrders,zoneColor,[]);
+        return;
+      }
+
+      var trip=data.trips[0];
+      var distKm=Math.round(trip.distance/1000*10)/10;
+      var durMin=Math.round(trip.duration/60);
+
+      // Reorder geoOrders based on OSRM waypoint indices
+      var waypointOrder=data.waypoints.map(function(wp){return wp.waypoint_index;});
+      // waypointOrder[0] is departure (skip), rest are stops
+      var optimizedOrders=[];
+      var stopIndices=waypointOrder.slice(1); // skip departure
+      stopIndices.forEach(function(wpIdx){
+        // wpIdx is 1-based relative to coords (0=departure)
+        var orderIdx=wpIdx-1;
+        if(orderIdx>=0&&orderIdx<geoOrders.length)optimizedOrders.push(geoOrders[orderIdx]);
+      });
+      // Add any non-geo orders at the end
+      var nonGeoOrders=zoneOrders.filter(function(o){return!o.lat||!o.lng;});
+      var finalOrders=optimizedOrders.concat(nonGeoOrders);
+
+      // Draw actual road route
+      var routeGeo=trip.geometry;
+      window._routeLine=L.geoJSON(routeGeo,{style:{color:zoneColor,weight:3,opacity:.7}}).addTo(routeMap);
+
+      // Add departure marker
+      var depMarker=L.circleMarker([depLat,depLng],{radius:10,color:zoneColor,weight:3,fillColor:'#fff',fillOpacity:1}).addTo(routeMap);
+      depMarker.bindTooltip('PARTENZA',{permanent:true,direction:'top',offset:[0,-12]});
+      routeMarkers.push(depMarker);
+
+      // Add numbered markers in optimized order
+      finalOrders.forEach(function(o,idx){
+        if(!o.lat||!o.lng)return;
+        var period=getTimePeriod(o);
+        var numHtml='<div style="width:20px;height:20px;background:'+zoneColor+';border:2px solid #fff;border-radius:50%;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)'+(period==='pm'?';border-radius:3px;transform:rotate(45deg)':'')+'">'+(period==='pm'?'<span style="transform:rotate(-45deg)">'+(idx+1)+'</span>':''+(idx+1))+'</div>';
+        var marker=L.marker([o.lat,o.lng],{icon:L.divIcon({className:'',html:numHtml,iconSize:[22,22],iconAnchor:[11,11]})});
+        marker.addTo(routeMap);
+        marker.bindPopup('<b>#'+(idx+1)+'</b> '+buildPopupContent(o),{maxWidth:300});
+        marker._orderId=o.id;
+        marker.on('click',function(){highlightRouteOrder(o.id);});
+        routeMarkers.push(marker);
+      });
+
+      // Update stats
+      if(statsEl)statsEl.textContent=finalOrders.length+' cons | '+distKm+' km | ~'+durMin+' min';
+
+      // Build list in optimized order
+      buildRouteList(finalOrders,zoneColor,optimizedOrders.map(function(o){return o.id;}));
+
+      // Fit map to route
+      if(window._routeLine)routeMap.fitBounds(window._routeLine.getBounds().pad(0.1));
+    })
+    .catch(function(err){
+      console.warn('OSRM error:',err);
+      if(statsEl)statsEl.textContent=zoneOrders.length+' cons | errore routing';
+      drawFallbackRoute(geoOrders,zoneColor,depLat,depLng);
+      buildRouteList(zoneOrders,zoneColor,[]);
+    });
+}
+
+function drawFallbackRoute(geoOrders,color,depLat,depLng){
+  var pts=[[depLat,depLng]];
+  geoOrders.forEach(function(o){pts.push([o.lat,o.lng]);});
+  window._routeLine=L.polyline(pts,{color:color,weight:2,opacity:.5,dashArray:'8 4'}).addTo(routeMap);
+  var depM=L.circleMarker([depLat,depLng],{radius:10,color:color,weight:3,fillColor:'#fff',fillOpacity:1}).addTo(routeMap);
+  depM.bindTooltip('PARTENZA',{permanent:true,direction:'top',offset:[0,-12]});
+  routeMarkers.push(depM);
+  geoOrders.forEach(function(o,idx){
+    var m=L.circleMarker([o.lat,o.lng],{radius:8,color:'#fff',weight:2,fillColor:color,fillOpacity:.9}).addTo(routeMap);
+    m.bindPopup('<b>#'+(idx+1)+'</b> '+buildPopupContent(o),{maxWidth:300});
+    m._orderId=o.id;m.on('click',function(){highlightRouteOrder(o.id);});
+    routeMarkers.push(m);
+  });
+}
+
+function buildRouteList(orderedList,zoneColor,optimizedIds){
   var list=document.getElementById('routesList');
   while(list.firstChild)list.removeChild(list.firstChild);
-  zoneOrders.forEach(function(o,idx){
+  orderedList.forEach(function(o,idx){
     var row=el('div',{className:'route-order','data-order-id':o.id,onClick:function(){
       routeMarkers.forEach(function(m){if(m._orderId===o.id){m.openPopup();if(m.setRadius)m.setRadius(14);else if(m._icon)m._icon.style.transform+=' scale(1.5)';}});
       list.querySelectorAll('.route-order').forEach(function(r){r.classList.remove('highlighted');});
@@ -2072,7 +2138,6 @@ function renderRoute(){
     var period=getTimePeriod(o);
     row.appendChild(el('div',{className:'ro-num',style:{background:zoneColor},textContent:String(idx+1)}));
     var info=el('div',{className:'ro-info'});
-    // Line 1: AM/PM + customer + products + time
     var line1=el('div',{className:'ro-line1'});
     line1.appendChild(el('span',{className:'ts-badge '+(period==='pm'?'pm':'am'),textContent:period==='pm'?'PM':'AM'}));
     if(o.splitPart)line1.appendChild(el('span',{className:'split-badge',textContent:o.splitPart+'/'+o.splitTotal}));
@@ -2082,7 +2147,6 @@ function renderRoute(){
     var timeStr=o.timeslot?(o.timeslot.match(/\d{1,2}[:.]\d{2}\s*[/-]\s*\d{1,2}[:.]\d{2}/)||[''])[0]:'';
     line1.appendChild(el('span',{className:'ro-time',textContent:timeStr||'-'}));
     info.appendChild(line1);
-    // Line 2: address
     info.appendChild(el('div',{className:'ro-line2',title:o.address,textContent:o.address}));
     row.appendChild(info);
     list.appendChild(row);
