@@ -2036,7 +2036,10 @@ function parseDBOrders(dbOrders){
 
     var customer=(o.customer_name||'').trim();
     var isNP=NP_CLIENTS.has(customer.toUpperCase());
-    var forcedZone=isSedeAddress(address)?SEDE_ZONE:null;
+    // Check sede in both parsed address AND raw shipping_address
+    var rawAddr=String(o.shipping_address||'');
+    var forcedZone=(isSedeAddress(address)||isSedeAddress(rawAddr))?SEDE_ZONE:null;
+    if(forcedZone)console.log('SEDE detected:',customer,address);
 
     // Zone from GPS if available
     var zone=forcedZone;
@@ -2083,7 +2086,7 @@ function startGeocoding(){
           if(gi>=failedGeo.length){overlay.classList.remove('active');document.getElementById('loadingText').textContent='Geocoding indirizzi...';showResolvePanel(orders.filter(function(o){return!o.lat&&!o.isSede;}));return;}
           document.getElementById('loadingProgress').textContent=(gi+1)+'/'+failedGeo.length+' (Google)';
           var o=failedGeo[gi];
-          geocodeGoogle(o.address).then(function(r){if(r){o.lat=r.lat;o.lng=r.lng;o.zone=findZone(r.lng,r.lat);geocodeCache[o.address.toLowerCase().trim()]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}gi++;setTimeout(nextG,200);});
+          geocodeGoogle(o.address).then(function(r){if(r){o.lat=r.lat;o.lng=r.lng;if(!o.isSede)o.zone=findZone(r.lng,r.lat);geocodeCache[o.address.toLowerCase().trim()]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}gi++;setTimeout(nextG,200);});
         }
         nextG();
       }else{overlay.classList.remove('active');showResolvePanel(orders.filter(function(o){return!o.lat&&!o.isSede;}));}
