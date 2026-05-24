@@ -99,6 +99,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .orders-table td:last-child{border-right:none;}
 .orders-table tbody tr:nth-child(even) td{background:#fafafa;}
 .orders-table tr:hover td{background:#f0f7ff;}
+.orders-table tr.highlighted td{background:#dbeafe!important;outline:2px solid #2563eb;}
+.leaflet-marker-highlight{animation:marker-pulse 1s ease-in-out 3;}
 .orders-table tr[draggable="true"]{cursor:grab;}.orders-table tr.dragging td{opacity:.4;}
 .col-num{width:28px;text-align:center;color:#999;border-right:2px solid #ccc;}
 .col-customer{min-width:120px;max-width:200px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -620,7 +622,7 @@ function buildZoneSection(zoneName,zoneOrders,color,isUnassigned,isSede,isCustom
   [{t:'#',c:'col-num'},{t:'Cliente',c:'col-customer'},{t:'Prodotti',c:'col-products'},{t:'Indirizzo',c:'col-address'},{t:'Note',c:'col-notes'},{t:'Importo',c:'col-amount'},{t:'Zona',c:'col-assign'},{t:'',c:'col-actions'}].forEach(function(h){hr.appendChild(el('th',{className:h.c,textContent:h.t}));});
   thead.appendChild(hr);table.appendChild(thead);var tbody=el('tbody');
   zoneOrders.forEach(function(order,idx){
-    var tr=el('tr',{draggable:'true','data-order-id':order.id,'data-zone':zoneName});
+    var tr=el('tr',{draggable:'true','data-order-id':order.id,'data-zone':zoneName,onClick:function(e){if(e.target.tagName==='SELECT'||e.target.tagName==='BUTTON'||e.target.tagName==='INPUT')return;highlightOrderMarker(order.id);}});
     tr.appendChild(el('td',{className:'col-num',textContent:String(idx+1)}));
     // Customer with split badge
     var custTd=el('td',{className:'col-customer',title:order.customer});
@@ -748,7 +750,11 @@ function refreshMapMarkers(map,arr,zoneFilter){
     }
     var zc=o.zone?(ZONE_COLORS[o.zone]||'#4f8cff'):'#f87171';
     var m=L.circleMarker([o.lat,o.lng],{radius:7,color:'#fff',weight:2,fillColor:zc,fillOpacity:.9}).addTo(map);
-    m.bindPopup(buildPopupContent(o),{maxWidth:300});arr.push(m);
+    m.bindPopup(buildPopupContent(o),{maxWidth:300});
+    m._orderId=o.id;
+    // Click marker -> highlight row in table
+    m.on('click',function(){highlightOrderRow(o.id);});
+    arr.push(m);
   });
 }
 
@@ -816,18 +822,15 @@ function runBalancing(){
 
   if(canDoWithLess&&nDrivers>1){
     var resultNm1=simulateBalance(nDrivers-1,totalLoad);
-    var satN=Math.round(totalLoad/(nDrivers*CAPACITY_NORMAL)*100);
-    var satNm1=Math.round(totalLoad/((nDrivers-1)*CAPACITY_NORMAL)*100);
-    // Show choice dialog
     showDialog({
       title:'Due scenari disponibili',
-      message:'Scenario A \u2014 '+(nDrivers-1)+' corrieri: saturazione '+satNm1+'%. Un corriere libero.\n\nScenario B \u2014 '+nDrivers+' corrieri: saturazione '+satN+'%. Carico pi\u00f9 equilibrato.',
+      message:'Scenario A \u2014 '+(nDrivers-1)+' corrieri: score '+resultNm1.score+'/100. Un corriere libero.\n\nScenario B \u2014 '+nDrivers+' corrieri: score '+resultN.score+'/100. Carico pi\u00f9 equilibrato.\n\nConsigliato: '+(resultN.score>=resultNm1.score?'Scenario B':'Scenario A'),
       buttons:[
-        {text:'Scenario A ('+(nDrivers-1)+' corrieri)',cls:'',action:function(){
+        {text:'Scenario A ('+(nDrivers-1)+' | '+resultNm1.score+'/100)',cls:resultNm1.score>resultN.score?'btn-primary':'',action:function(){
           document.getElementById('driverCount').value=nDrivers-1;
           showBalanceModal(resultNm1);
         }},
-        {text:'Scenario B ('+nDrivers+' corrieri)',cls:'btn-primary',action:function(){
+        {text:'Scenario B ('+nDrivers+' | '+resultN.score+'/100)',cls:resultN.score>=resultNm1.score?'btn-primary':'',action:function(){
           showBalanceModal(resultN);
         }}
       ]
@@ -877,61 +880,61 @@ function simulateBalance(nDrivers,totalLoad){
 
   var targetPerDriver=Math.ceil(totalLoad/nDrivers);
 
-  // Phase 1: Redistribute to extra drivers (>5)
-  // Each extra driver picks from the SINGLE most overloaded zone
-  // Orders are clustered geographically (closest to each other)
-  if(nDrivers>activeZones.length-simExtraZones.length+simExtraZones.length&&simExtraZones.length>0){
+  // Phase 1: Extra drivers - proximity-based clustering across ALL zones
+  if(simExtraZones.length>0){
     simExtraZones.forEach(function(driverZone){
       simLoads[driverZone]=0;
-      // Find most overloaded standard zone
-      var maxZone=null,maxLoad=0;
-      activeZones.forEach(function(zn){
-        if(simExtraZones.indexOf(zn)!==-1)return;
-        if(zn.indexOf('DRIVER ')===0)return;
-        var zl=simLoads[zn]||0;
-        if(zl>maxLoad){maxLoad=zl;maxZone=zn;}
+
+      // Collect ALL movable orders: from overloaded zones + unassigned
+      var candidates=[];
+      // Prioritize: unassigned first, then orders from zones above target
+      orders.forEach(function(o){
+        if(movedOrderIds[o.id]||!o.lat||!o.lng||o.isSede)return;
+        if(!o.zone){candidates.push({order:o,from:'NON ASSEGNATI',priority:0});return;}
+        var zl=simLoads[o.zone]||0;
+        if(zl>targetPerDriver){candidates.push({order:o,from:o.zone,priority:1});}
       });
-      if(!maxZone||maxLoad<=targetPerDriver)return;
+      if(candidates.length===0)return;
 
-      // Get orders from this ONE zone, sorted by proximity to each other (cluster)
-      var zOrders=orders.filter(function(o){return o.zone===maxZone&&o.lat&&o.lng&&!movedOrderIds[o.id];});
-      if(zOrders.length===0)return;
+      // Find seed: unassigned order or order from most overloaded zone
+      candidates.sort(function(a,b){
+        if(a.priority!==b.priority)return a.priority-b.priority;
+        var al=simLoads[a.from]||0,bl=simLoads[b.from]||0;
+        return bl-al; // heaviest zone first
+      });
 
-      // Start cluster from the order farthest from zone centroid (border)
-      var zCentroid=getZoneCentroid(maxZone);
-      if(zCentroid){zOrders.sort(function(a,b){return distanceBetween(b.lat,b.lng,zCentroid.lat,zCentroid.lng)-distanceBetween(a.lat,a.lng,zCentroid.lat,zCentroid.lng);});}
+      var seed=candidates[0];
+      var cluster=[seed];
+      var clusterLoad=getOrderLoad(seed.order).total;
+      candidates.splice(0,1);
 
-      // Pick first order as cluster seed, then grow cluster by proximity
-      var clusterOrders=[zOrders[0]];
-      var remaining=zOrders.slice(1);
-      var driverLoad=getOrderLoad(zOrders[0]).total;
-
-      while(driverLoad<targetPerDriver&&remaining.length>0){
-        // Find order closest to any order already in cluster
+      // Grow cluster by proximity
+      while(clusterLoad<targetPerDriver&&candidates.length>0){
         var bestIdx=-1,bestDist=Infinity;
-        for(var ri=0;ri<remaining.length;ri++){
-          var ro=remaining[ri];
-          for(var ci=0;ci<clusterOrders.length;ci++){
-            var co=clusterOrders[ci];
-            var d=distanceBetween(ro.lat,ro.lng,co.lat,co.lng);
-            if(d<bestDist){bestDist=d;bestIdx=ri;}
+        for(var ci=0;ci<candidates.length;ci++){
+          var cand=candidates[ci];
+          // Distance to nearest cluster member
+          var minD=Infinity;
+          for(var ki=0;ki<cluster.length;ki++){
+            var d=distanceBetween(cand.order.lat,cand.order.lng,cluster[ki].order.lat,cluster[ki].order.lng);
+            if(d<minD)minD=d;
           }
+          if(minD<bestDist){bestDist=minD;bestIdx=ci;}
         }
         if(bestIdx===-1)break;
-        var nextOrder=remaining[bestIdx];
-        var nextLoad=getOrderLoad(nextOrder).total;
-        if(driverLoad+nextLoad>CAPACITY_NORMAL)break;
-        clusterOrders.push(nextOrder);
-        remaining.splice(bestIdx,1);
-        driverLoad+=nextLoad;
+        var next=candidates[bestIdx];
+        var nLoad=getOrderLoad(next.order).total;
+        if(clusterLoad+nLoad>CAPACITY_NORMAL){candidates.splice(bestIdx,1);continue;}
+        cluster.push(next);candidates.splice(bestIdx,1);
+        clusterLoad+=nLoad;
       }
 
-      // Create suggestions for the cluster
-      clusterOrders.forEach(function(co){
-        suggestions.push({type:'move',order:co,from:maxZone,to:driverZone,reason:'Driver extra: '+co.customer+' da '+maxZone+' \u2192 '+driverZone+' (cluster prossimit\u00e0)'});
-        movedOrderIds[co.id]=true;
-        simLoads[maxZone]-=getOrderLoad(co).total;
-        simLoads[driverZone]+=getOrderLoad(co).total;
+      // Apply cluster
+      cluster.forEach(function(c){
+        suggestions.push({type:'move',order:c.order,from:c.from,to:driverZone,reason:'Driver extra: '+c.order.customer+' da '+c.from+' \u2192 '+driverZone+' (cluster prossimit\u00e0)'});
+        movedOrderIds[c.order.id]=true;
+        if(simLoads[c.from]!==undefined)simLoads[c.from]-=getOrderLoad(c.order).total;
+        simLoads[driverZone]+=getOrderLoad(c.order).total;
       });
     });
   }
@@ -1017,20 +1020,41 @@ function simulateBalance(nDrivers,totalLoad){
     else if(!placed){suggestions.push({type:'driver',order:o,from:'NON ASSEGNATI',to:'',reason:'Impossibile: '+o.customer+'. Aggiungere un corriere.'});}
   });
 
-  // Status
+  // Acceptability score (0-100)
   var globalCap=nDrivers*CAPACITY_NORMAL;
   var satPct=Math.round(totalLoad/globalCap*100);
-  var statusMsg,statusCls;
-  if(satPct>=100){statusMsg='Capacit\u00e0 insufficiente: '+totalLoad+'/'+globalCap+' colli ('+satPct+'%). Aggiungere corrieri.';statusCls='bal-err';}
-  else if(satPct>=90){statusMsg='Attenzione: saturazione '+satPct+'% ('+totalLoad+'/'+globalCap+' colli). Valutare corriere aggiuntivo.';statusCls='bal-warn';}
-  else{statusMsg=nDrivers+' corrieri: '+totalLoad+'/'+globalCap+' colli ('+satPct+'%)';if(hasSplitDeroga)statusMsg+=' - deroga 180 con split';statusCls='bal-ok';}
+  var unassignedLeft=orders.filter(function(o){return!o.zone&&!o.isSede;}).length;
+  // Count how many suggested to move from unassigned
+  suggestions.forEach(function(s){if(s.type==='move'&&s.from==='NON ASSEGNATI')unassignedLeft--;});
+  unassignedLeft=Math.max(0,unassignedLeft);
 
-  // Per-zone breakdown
+  // Score components
+  var overloaded=0;
+  activeZones.forEach(function(zn){if((simLoads[zn]||0)>CAPACITY_NORMAL)overloaded++;});
+  var loads=[];activeZones.forEach(function(zn){var l=simLoads[zn]||0;if(l>0)loads.push(l);});
+  var avgLoad=loads.length>0?loads.reduce(function(a,b){return a+b;},0)/loads.length:0;
+  var variance=loads.length>0?loads.reduce(function(a,b){return a+Math.pow(b-avgLoad,2);},0)/loads.length:0;
+  var stdDev=Math.sqrt(variance);
+  var balanceScore=Math.max(0,100-Math.round(stdDev/Math.max(1,avgLoad)*200));
+  var unassignedPenalty=unassignedLeft*15;
+  var overloadPenalty=overloaded*20;
+  var score=Math.max(0,Math.min(100,balanceScore-unassignedPenalty-overloadPenalty));
+
+  var statusMsg,statusCls;
+  if(satPct>=100){statusMsg='Capacit\u00e0 insufficiente ('+satPct+'%). Aggiungere corrieri.';statusCls='bal-err';}
+  else if(score>=80){statusMsg='Ottimo bilanciamento';statusCls='bal-ok';}
+  else if(score>=50){statusMsg='Bilanciamento accettabile';statusCls='bal-warn';}
+  else{statusMsg='Bilanciamento scarso';statusCls='bal-err';}
+
+  statusMsg+='\nScore: '+score+'/100 | '+nDrivers+' corrieri | '+totalLoad+'/'+globalCap+' colli ('+satPct+'%)';
+  if(unassignedLeft>0)statusMsg+=' | '+unassignedLeft+' non assegnati';
+  if(overloaded>0)statusMsg+=' | '+overloaded+' zone sovraccariche';
+
   var breakdown=[];
-  activeZones.forEach(function(zn){var l=simLoads[zn]||0;if(l>0)breakdown.push(zn+': '+l+' colli');});
+  activeZones.forEach(function(zn){var l=simLoads[zn]||0;if(l>0){var warn=l>CAPACITY_NORMAL?' !!':'';breakdown.push(zn+': '+l+warn);}});
   if(breakdown.length>0)statusMsg+='\n'+breakdown.join(' | ');
 
-  return{suggestions:suggestions,statusMsg:statusMsg,statusCls:statusCls,extraZones:simExtraZones};
+  return{suggestions:suggestions,statusMsg:statusMsg,statusCls:statusCls,extraZones:simExtraZones,score:score};
 }
 
 function showBalanceModal(result){
@@ -1180,6 +1204,35 @@ document.getElementById('btnResetMods').addEventListener('click',function(){
     ]
   });
 });
+
+// ============================================================
+// HIGHLIGHT: click row -> flash marker, click marker -> highlight row
+// ============================================================
+function highlightOrderRow(orderId){
+  // Remove previous highlights
+  document.querySelectorAll('.orders-table tr.highlighted').forEach(function(r){r.classList.remove('highlighted');});
+  // Find and highlight matching rows
+  document.querySelectorAll('.orders-table tr[data-order-id="'+orderId+'"]').forEach(function(r){
+    r.classList.add('highlighted');
+    r.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+  // Auto-remove after 4 seconds
+  setTimeout(function(){document.querySelectorAll('.orders-table tr.highlighted').forEach(function(r){r.classList.remove('highlighted');});},4000);
+}
+
+function highlightOrderMarker(orderId){
+  // Flash the marker on all maps
+  [mapConsegneMarkers,mapZoneMarkers].forEach(function(arr){
+    arr.forEach(function(m){
+      if(m._orderId===orderId){
+        var origRadius=m.getRadius();
+        m.setRadius(14);m.setStyle({weight:4,color:'#2563eb'});
+        m.openPopup();
+        setTimeout(function(){m.setRadius(origRadius);m.setStyle({weight:2,color:'#fff'});},3000);
+      }
+    });
+  });
+}
 
 // Track which zones are expanded (default: all collapsed)
 var expandedZones={};
