@@ -73,8 +73,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 #mainMap{width:100%;height:100%;}
 #mapConsegne,#mapZone{width:100%;height:100%;}
 .dual-view{display:none;}
-.dual-mode .dual-view{display:block;}
-.dual-mode .single-view{display:none;}
+#panel-giri.dual-mode .dual-view{display:block;}
+#panel-giri.dual-mode .single-view{display:none;}
 .split-container{display:flex;height:calc(100vh - 200px);min-height:500px;}
 .split-left,.split-right{flex:1;overflow-y:auto;border-right:2px solid #d0d0d0;}.split-right{border-right:none;border-left:2px solid #d0d0d0;}
 .split-label{background:#e8f0fe;color:#2563eb;text-align:center;padding:6px;font-size:12px;font-weight:600;position:sticky;top:0;z-index:5;border-bottom:1px solid #d0d0d0;}
@@ -126,7 +126,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .chevron{transition:transform .2s;font-size:14px;color:var(--text2);margin-left:8px;flex-shrink:0;}
 .zone-table-header.collapsed .chevron{transform:rotate(-90deg);}
 .zone-table-content.collapsed{display:none;}
-.zone-section.sede-zone .zone-table-header{background:rgba(2,132,199,0.08);}.zone-section.sede-zone .zone-title{color:var(--sede-color);}
+.zone-section.sede-zone .zone-table-header{background:rgba(22,163,74,0.08);}.zone-section.sede-zone .zone-title{color:#16a34a;}
 .zone-section.unassigned .zone-table-header{background:rgba(220,38,38,0.06);}
 .zone-section.drag-target .zone-table-header{background:rgba(37,99,235,0.12);border-color:var(--accent);}
 .orders-table{width:100%;border-collapse:collapse;table-layout:auto;}
@@ -1767,10 +1767,9 @@ function renderMapSplit(){
 }
 document.getElementById('btnDual').addEventListener('click',function(){
   dualMode=!dualMode;
-  // Clear all inline styles and toggle class
   this.removeAttribute('style');
   this.setAttribute('style','padding:3px 8px;font-size:10px'+(dualMode?';background:var(--accent);color:#fff;border-color:var(--accent)':''));
-  document.getElementById('mainView').classList.toggle('dual-mode',dualMode);
+  document.getElementById('panel-giri').classList.toggle('dual-mode',dualMode);
   renderAll();
 });
 document.getElementById('searchInput').addEventListener('input',function(){renderAll();});
