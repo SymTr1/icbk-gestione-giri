@@ -173,7 +173,27 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 </head>
 <body>
 <div class="header"><h1><span>ICBK</span> Gestione Giri</h1><div class="header-stats" id="headerStats"></div></div>
-<div class="upload-area" id="uploadArea"><div class="upload-box" id="uploadBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg><h2>Carica il file CSV degli ordini</h2><p>Trascina qui o clicca per selezionare</p></div><input type="file" id="fileInput" accept=".csv" style="display:none"></div>
+<div class="upload-area" id="uploadArea">
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;justify-content:center">
+    <div id="dbLoadBox" style="background:#fff;border:2px solid #2563eb;border-radius:16px;padding:40px 50px;text-align:center;cursor:pointer;max-width:380px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" style="width:40px;height:40px;margin-bottom:12px"><path d="M4 7v10c0 2 2 3 4 3h8c2 0 4-1 4-3V7"/><ellipse cx="12" cy="7" rx="8" ry="3"/><path d="M4 12c0 2 3.6 3 8 3s8-1 8-3"/></svg>
+      <h2 style="font-size:17px;margin-bottom:6px">Carica dal Database</h2>
+      <p style="color:#666;font-size:13px;margin-bottom:12px">Scarica gli ordini di oggi dal DB di produzione</p>
+      <div style="display:flex;gap:8px;align-items:center;justify-content:center">
+        <label style="font-size:12px;color:#666">Data:</label>
+        <input type="date" id="dbDate" value="" style="padding:5px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+      </div>
+      <button class="btn btn-primary" id="btnLoadDB" style="margin-top:12px;padding:8px 24px">Scarica Ordini</button>
+    </div>
+    <div style="color:#999;font-size:14px;align-self:center;padding:20px">oppure</div>
+    <div class="upload-box" id="uploadBox" style="max-width:380px;padding:40px 50px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:40px;height:40px;margin-bottom:12px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      <h2 style="font-size:17px;margin-bottom:6px">Carica file CSV</h2>
+      <p style="color:#666;font-size:13px">Trascina qui o clicca per selezionare</p>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept=".csv" style="display:none">
+</div>
 <div class="resolve-overlay" id="resolveOverlay"><div class="resolve-panel"><div class="resolve-header"><h2>Indirizzi non trovati: <span class="resolve-count" id="resolveCount">0</span></h2><p style="color:var(--text2);font-size:12px;margin-left:12px">Cerca o clicca sulla mappa</p><button class="btn btn-primary resolve-skip" id="resolveSkipBtn">Continua</button></div><div id="resolveList"></div></div></div>
 
 <!-- SPLIT MODAL -->
@@ -1500,7 +1520,134 @@ function removeCustomZone(name){
 var uploadBox=document.getElementById('uploadBox'),fileInput=document.getElementById('fileInput');
 uploadBox.addEventListener('click',function(){fileInput.click();});uploadBox.addEventListener('dragover',function(e){e.preventDefault();uploadBox.classList.add('dragover');});uploadBox.addEventListener('dragleave',function(){uploadBox.classList.remove('dragover');});uploadBox.addEventListener('drop',function(e){e.preventDefault();uploadBox.classList.remove('dragover');if(e.dataTransfer.files[0])processFile(e.dataTransfer.files[0]);});fileInput.addEventListener('change',function(e){if(e.target.files[0])processFile(e.target.files[0]);});
 
-function processFile(file){file.text().then(function(text){orders=parseCSV(text);if(orders.length===0){showToast('Nessun ordine trovato');return;}document.getElementById('uploadArea').style.display='none';var overlay=document.getElementById('loadingOverlay');overlay.classList.add('active');var total=orders.length,idx=0,failedGeo=[];function nextOrder(){if(idx>=orders.length){if(failedGeo.length>0){document.getElementById('loadingText').textContent='Google Maps fallback...';var gi=0;function nextG(){if(gi>=failedGeo.length){overlay.classList.remove('active');document.getElementById('loadingText').textContent='Geocoding indirizzi...';showResolvePanel(orders.filter(function(o){return!o.lat&&!o.isSede;}));return;}document.getElementById('loadingProgress').textContent=(gi+1)+'/'+failedGeo.length+' (Google)';var o=failedGeo[gi];geocodeGoogle(o.address).then(function(r){if(r){o.lat=r.lat;o.lng=r.lng;o.zone=findZone(r.lng,r.lat);geocodeCache[o.address.toLowerCase().trim()]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}gi++;setTimeout(nextG,200);});}nextG();}else{overlay.classList.remove('active');showResolvePanel(orders.filter(function(o){return!o.lat&&!o.isSede;}));}return;}document.getElementById('loadingProgress').textContent=(idx+1)+'/'+total;var o=orders[idx];if(o.isSede){idx++;nextOrder();return;}var ck=o.address.toLowerCase().trim();if(geocodeCache[ck]){var cached=geocodeCache[ck];o.lat=cached.lat;o.lng=cached.lng;o.zone=findZone(cached.lng,cached.lat);idx++;nextOrder();return;}geocodeNominatim(o.address).then(function(r){if(r){o.lat=r.lat;o.lng=r.lng;o.zone=findZone(r.lng,r.lat);geocodeCache[ck]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}else failedGeo.push(o);idx++;setTimeout(nextOrder,1100);});}nextOrder();});}
+// Set default date to today
+document.getElementById('dbDate').value=new Date().toISOString().slice(0,10);
+
+// Load from DB
+document.getElementById('btnLoadDB').addEventListener('click',function(){
+  var date=document.getElementById('dbDate').value;
+  if(!date){showToast('Seleziona una data');return;}
+  var btn=document.getElementById('btnLoadDB');
+  btn.textContent='Caricamento...';btn.disabled=true;
+  fetch('/api/orders?date='+date+'&limit=2000')
+    .then(function(r){return r.json();})
+    .then(function(data){
+      btn.textContent='Scarica Ordini';btn.disabled=false;
+      if(!data.orders||data.orders.length===0){showToast('Nessun ordine per '+date);return;}
+      orders=parseDBOrders(data.orders);
+      startGeocoding();
+    })
+    .catch(function(err){
+      btn.textContent='Scarica Ordini';btn.disabled=false;
+      showToast('Errore connessione DB: '+err.message);
+    });
+});
+
+function parseDBOrders(dbOrders){
+  var results=[];
+  dbOrders.forEach(function(o){
+    // Skip cancelled
+    if(o.order_status==='cancelled')return;
+
+    // Parse products
+    var dp=[];
+    (o.products_detail||[]).forEach(function(p){
+      if(SERVICE_PRODUCTS.has(p.product_name))return;
+      dp.push({
+        name:p.product_name,
+        quantity:p.quantity,
+        abbr:p.abbreviation||PRODUCT_ABBREVIATIONS[p.product_name]||p.product_name,
+        step:PRODUCT_STEPS[p.product_name]||1,
+        colli:Math.ceil(p.quantity/(PRODUCT_STEPS[p.product_name]||1)),
+        isPoli:POLIBOX_PRODUCTS.has(p.product_name),
+        isClear:CLEAR_PRODUCTS.has(p.product_name)
+      });
+    });
+
+    // Parse address - shipping_address is JSON string
+    var address='';
+    var lat=null,lng=null;
+    try{
+      var addr=typeof o.shipping_address==='string'?JSON.parse(o.shipping_address):o.shipping_address;
+      if(addr){
+        var parts=[];
+        if(addr.line1)parts.push(addr.line1);
+        if(addr.line2)parts.push(addr.line2);
+        if(addr.city)parts.push(addr.city);
+        if(addr.zip)parts.push(addr.zip);
+        address=parts.join(', ')||'';
+        // GPS coordinates if available
+        if(addr.latitude&&addr.longitude){lat=parseFloat(addr.latitude);lng=parseFloat(addr.longitude);}
+        else if(addr.lat&&addr.lng){lat=parseFloat(addr.lat);lng=parseFloat(addr.lng);}
+      }
+    }catch(e){address=String(o.shipping_address||'');}
+
+    var customer=(o.customer_name||'').trim();
+    var isNP=NP_CLIENTS.has(customer.toUpperCase());
+    var forcedZone=isSedeAddress(address)?SEDE_ZONE:null;
+
+    // Zone from GPS if available
+    var zone=forcedZone;
+    if(!zone&&lat&&lng){zone=findZone(lng,lat);}
+
+    results.push({
+      id:o.order_id,
+      customer:customer,
+      products:dp,
+      date:o.delivery_date,
+      address:address,
+      contact:(o.contact_name||'')+(o.telephone?' '+o.telephone:''),
+      instructions:o.delivery_instructions||'',
+      note:o.internal_note||'',
+      total:o.total_amount||0,
+      isNP:isNP,
+      zone:zone,
+      lat:lat,lng:lng,
+      isSede:!!forcedZone,
+      splitPart:null,splitTotal:null,originalId:null,
+      // Extra DB fields
+      driverName:o.driver_name||'',
+      orderStatus:o.order_status||'',
+      timeslot:o.timeslot||'',
+      paymentStatus:o.last_payment_status||'',
+      hasDebt:o.customer_has_outstanding_debt||false,
+      outstandingBalance:o.customer_outstanding_balance||0
+    });
+  });
+  return results;
+}
+
+function startGeocoding(){
+  if(orders.length===0){showToast('Nessun ordine trovato');return;}
+  document.getElementById('uploadArea').style.display='none';
+  var overlay=document.getElementById('loadingOverlay');overlay.classList.add('active');
+  var total=orders.length,idx=0,failedGeo=[];
+  function nextOrder(){
+    if(idx>=orders.length){
+      if(failedGeo.length>0){
+        document.getElementById('loadingText').textContent='Google Maps fallback...';
+        var gi=0;
+        function nextG(){
+          if(gi>=failedGeo.length){overlay.classList.remove('active');document.getElementById('loadingText').textContent='Geocoding indirizzi...';showResolvePanel(orders.filter(function(o){return!o.lat&&!o.isSede;}));return;}
+          document.getElementById('loadingProgress').textContent=(gi+1)+'/'+failedGeo.length+' (Google)';
+          var o=failedGeo[gi];
+          geocodeGoogle(o.address).then(function(r){if(r){o.lat=r.lat;o.lng=r.lng;o.zone=findZone(r.lng,r.lat);geocodeCache[o.address.toLowerCase().trim()]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}gi++;setTimeout(nextG,200);});
+        }
+        nextG();
+      }else{overlay.classList.remove('active');showResolvePanel(orders.filter(function(o){return!o.lat&&!o.isSede;}));}
+      return;
+    }
+    document.getElementById('loadingProgress').textContent=(idx+1)+'/'+total;
+    var o=orders[idx];
+    if(o.isSede||o.lat){idx++;nextOrder();return;} // skip if already has coords (from DB GPS)
+    var ck=o.address.toLowerCase().trim();
+    if(geocodeCache[ck]){var cached=geocodeCache[ck];o.lat=cached.lat;o.lng=cached.lng;o.zone=findZone(cached.lng,cached.lat);idx++;nextOrder();return;}
+    geocodeNominatim(o.address).then(function(r){if(r){o.lat=r.lat;o.lng=r.lng;o.zone=findZone(r.lng,r.lat);geocodeCache[ck]=r;try{localStorage.setItem('icbk_geocode_cache',JSON.stringify(geocodeCache));}catch(e){}}else failedGeo.push(o);idx++;setTimeout(nextOrder,1100);});
+  }
+  nextOrder();
+}
+
+function processFile(file){file.text().then(function(text){orders=parseCSV(text);startGeocoding();});}
 </script>
 </body>
 </html>
