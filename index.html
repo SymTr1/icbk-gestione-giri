@@ -164,6 +164,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .dep-autocomplete-item:last-child{border-bottom:none;}
 .dep-confirmed{border-color:#22c55e !important;color:#166534 !important;font-weight:500;}
 .dep-searching{border-color:#f59e0b !important;}
+@keyframes time-hint{0%,100%{background:#fff4cc;}50%{background:#fff;}}
+.time-hint{animation:time-hint 1s ease-in-out 5;border-radius:4px;}
 .col-driver{width:70px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .col-status{width:22px;text-align:center;}
 .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
@@ -2175,7 +2177,17 @@ function initRouteMap(){
   // Populate zone selector
   updateRouteZoneSelect();
   document.getElementById('routeZoneSelect').addEventListener('change',function(){currentRouteOrder=null;renderRoute();});
-  document.querySelectorAll('input[name="routePeriod"]').forEach(function(r){r.addEventListener('change',function(){currentRouteOrder=null;renderRoute();});});
+  document.querySelectorAll('input[name="routePeriod"]').forEach(function(r){r.addEventListener('change',function(){
+    currentRouteOrder=null;
+    var depTime=document.getElementById('routeDepartureTime');
+    if(this.value==='am'){depTime.value='08:45';}
+    else if(this.value==='pm'){depTime.value='14:00';}
+    depTime.classList.remove('time-hint');
+    void depTime.offsetWidth;
+    depTime.classList.add('time-hint');
+    setTimeout(function(){depTime.classList.remove('time-hint');},5000);
+    renderRoute();
+  });});
   document.getElementById('routeDepartureTime').addEventListener('change',function(){renderRoute();});
   document.getElementById('routeShowZones').addEventListener('change',function(){renderRoute();});
   document.getElementById('btnRouting').addEventListener('click',function(){runOSRMRouting();});
