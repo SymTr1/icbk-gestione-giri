@@ -152,7 +152,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .col-notes{min-width:60px;max-width:140px;}
 .col-amount{width:70px;text-align:right;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums;}
 .col-actions{width:52px;text-align:center;white-space:nowrap;}
-.col-timeslot{width:55px;font-size:11px;white-space:nowrap;}
+.col-timeslot{width:90px;font-size:11px;white-space:nowrap;cursor:pointer;}
+.col-timeslot:hover{background:#f0f7ff;}
+.ts-display{padding:2px 4px;border-radius:3px;}
+.ts-edit{display:flex;gap:1px;align-items:center;font-size:10px;}
+.ts-edit input[type="time"]{padding:1px 2px;border:1px solid #bbb;border-radius:3px;font-size:10px;width:58px;}
+.ts-edited{color:#2563eb;font-weight:600;}
 .col-driver{width:70px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .col-status{width:22px;text-align:center;}
 .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
@@ -404,18 +409,17 @@ function isSedeAddress(a){a=a.toLowerCase();return/via\s+teramo\s+9/i.test(a)||/
 
 // Timeslot parsing: returns 'am' or 'pm'
 function getTimePeriod(order){
+  // Custom slot from operator override takes priority
+  var cs=order._customSlot||'';
+  if(cs){var cm=cs.match(/(\d{1,2})[:.:](\d{2})/);if(cm){var ch=parseInt(cm[1]);if(ch>=14)return 'pm';return 'am';}}
   var ts=(order.timeslot||'').toLowerCase();
-  // Check by timeslot name patterns
   if(/mattina|morning/i.test(ts))return 'am';
   if(/pomeriggio|afternoon/i.test(ts))return 'pm';
-  // Check by time: parse HH:MM, if start hour >= 14 -> pm
   var timeMatch=ts.match(/(\d{1,2})[:.:](\d{2})/);
   if(timeMatch){var h=parseInt(timeMatch[1]);if(h>=14)return 'pm';}
-  // Check delivery_time field
   var dt=(order.deliveryTime||'').toLowerCase();
   var dtMatch=dt.match(/(\d{1,2})[:.:](\d{2})/);
   if(dtMatch){var h2=parseInt(dtMatch[1]);if(h2>=14)return 'pm';}
-  // Default to morning if no info
   return 'am';
 }
 
@@ -956,10 +960,41 @@ function buildPeriodSection(periodOrders,period,zoneName){
     var st=order.orderStatus||'';
     if(st==='pending'||st==='confirmed'||st==='delivered')statusTd.appendChild(el('span',{className:'status-dot '+st,title:st}));
     tr.appendChild(statusTd);
-    // Time (short)
+    // Time (click-to-edit)
     var tsTd=el('td',{className:'col-timeslot'});
-    var timeStr=order.timeslot?(order.timeslot.match(/\d{1,2}[:.]\d{2}\s*[/-]\s*\d{1,2}[:.]\d{2}/)||[''])[0]:'';
-    tsTd.textContent=timeStr||'-';
+    (function(td,ord){
+      var slot=parseSlotTimes(ord);
+      var hasCustom=!!ord._customSlot;
+      var displayText=minutesToHHMM(slot.start)+'-'+minutesToHHMM(slot.end);
+      var span=el('span',{className:'ts-display'+(hasCustom?' ts-edited':''),textContent:displayText,title:'Clicca per modificare la fascia oraria'});
+      td.appendChild(span);
+      td.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(td.querySelector('.ts-edit'))return;
+        td.removeChild(span);
+        var wrap=el('div',{className:'ts-edit'});
+        var startInp=el('input',{type:'time',value:minutesToHHMM(slot.start)});
+        var endInp=el('input',{type:'time',value:minutesToHHMM(slot.end)});
+        wrap.appendChild(startInp);wrap.appendChild(document.createTextNode('–'));wrap.appendChild(endInp);
+        td.appendChild(wrap);
+        startInp.focus();
+        function save(){
+          var sv=startInp.value,ev=endInp.value;
+          if(sv&&ev){ord._customSlot=sv+'-'+ev;}
+          td.removeChild(wrap);
+          var newSlot=parseSlotTimes(ord);
+          var edited=!!ord._customSlot;
+          span.textContent=minutesToHHMM(newSlot.start)+'-'+minutesToHHMM(newSlot.end);
+          span.className='ts-display'+(edited?' ts-edited':'');
+          td.appendChild(span);
+          renderAll();
+        }
+        startInp.addEventListener('blur',function(){setTimeout(function(){if(!td.contains(document.activeElement)||!td.querySelector('.ts-edit'))save();},150);});
+        endInp.addEventListener('blur',function(){setTimeout(function(){if(!td.contains(document.activeElement)||!td.querySelector('.ts-edit'))save();},150);});
+        endInp.addEventListener('keydown',function(ev){if(ev.key==='Enter')save();});
+        startInp.addEventListener('keydown',function(ev){if(ev.key==='Enter')endInp.focus();});
+      });
+    })(tsTd,order);
     tr.appendChild(tsTd);
     // Customer
     var custTd=el('td',{className:'col-customer',title:order.customer});
