@@ -47,7 +47,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .route-order{display:flex;align-items:flex-start;gap:6px;padding:5px 10px;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:12px;transition:background .1s;}
 .route-order:hover{background:#f0f7ff;}
 .route-order.highlighted{background:#dbeafe;outline:2px solid #2563eb;}
-.route-order .ro-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;margin-top:2px;}
+.route-order .ro-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:2px;box-sizing:border-box;}
 .route-order .ro-info{flex:1;min-width:0;}
 .route-order .ro-line1{display:flex;gap:4px;align-items:center;white-space:nowrap;overflow:hidden;}
 .route-order .ro-customer{font-weight:500;overflow:hidden;text-overflow:ellipsis;}
@@ -166,6 +166,21 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .dep-searching{border-color:#f59e0b !important;}
 @keyframes time-hint{0%,100%{background:#fff4cc;}50%{background:#fff;}}
 .time-hint{animation:time-hint 1s ease-in-out 5;border-radius:4px;}
+.route-order.waypoint{background:#f8f9ff;border-left:3px solid var(--accent);}
+.route-order.waypoint.pickup{border-left-color:#16a34a;}
+.wp-badge{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;margin-right:4px;}
+.wp-badge.delivery{background:#eef2ff;color:#4f46e5;}
+.wp-badge.pickup{background:#dcfce7;color:#166534;}
+.wp-form{padding:8px 12px;background:#f8f9ff;border-bottom:1px solid #e0e0e0;font-size:11px;}
+.wp-form-row{display:flex;gap:4px;align-items:center;margin-bottom:4px;}
+.wp-form-row:last-child{margin-bottom:0;}
+.wp-form input[type="text"]{flex:1;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;box-sizing:border-box;}
+.wp-form input[type="number"]{width:55px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;}
+.wp-form input[type="time"]{width:62px;padding:2px 4px;border:1px solid #ddd;border-radius:4px;font-size:10px;}
+.wp-form select{padding:2px 4px;border:1px solid #ddd;border-radius:4px;font-size:11px;}
+.wp-autocomplete{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-top:none;border-radius:0 0 6px 6px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:50;max-height:160px;overflow-y:auto;}
+.wp-autocomplete-item{padding:5px 8px;font-size:11px;cursor:pointer;border-bottom:1px solid #f0f0f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.wp-autocomplete-item:hover{background:#e8f0fe;color:#1a56db;}
 .col-driver{width:70px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .col-status{width:22px;text-align:center;}
 .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
@@ -376,6 +391,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
               <input type="time" id="routeDepartureTime" value="08:45" style="padding:3px 4px;border:1px solid #ddd;border-radius:4px;font-size:11px;width:70px">
             </div>
             <div style="display:flex;gap:6px;align-items:center">
+              <button class="btn" id="btnAddWaypoint" style="padding:4px 10px;font-size:11px" title="Aggiungi tappa manuale">+ Tappa</button>
               <button class="btn btn-primary" id="btnRouting" style="padding:4px 14px;font-size:11px">Routing OSRM</button>
               <span id="routingCooldown" style="font-size:10px;color:#999;display:none"></span>
             </div>
@@ -2180,17 +2196,17 @@ function initRouteMap(){
   document.querySelectorAll('input[name="routePeriod"]').forEach(function(r){r.addEventListener('change',function(){
     currentRouteOrder=null;
     var depTime=document.getElementById('routeDepartureTime');
+    var depAddr=document.getElementById('routeDeparture');
     if(this.value==='am'){depTime.value='08:45';}
     else if(this.value==='pm'){depTime.value='14:00';}
-    depTime.classList.remove('time-hint');
-    void depTime.offsetWidth;
-    depTime.classList.add('time-hint');
-    setTimeout(function(){depTime.classList.remove('time-hint');},5000);
+    [depTime,depAddr].forEach(function(inp){inp.classList.remove('time-hint');void inp.offsetWidth;inp.classList.add('time-hint');});
+    setTimeout(function(){depTime.classList.remove('time-hint');depAddr.classList.remove('time-hint');},5000);
     renderRoute();
   });});
   document.getElementById('routeDepartureTime').addEventListener('change',function(){renderRoute();});
   document.getElementById('routeShowZones').addEventListener('change',function(){renderRoute();});
   document.getElementById('btnRouting').addEventListener('click',function(){runOSRMRouting();});
+  document.getElementById('btnAddWaypoint').addEventListener('click',function(){addWaypoint();});
 
   // Departure autocomplete + geocoding
   var depInput=document.getElementById('routeDeparture');
@@ -2269,6 +2285,18 @@ function updateRouteZoneSelect(){
 var currentRouteOrder=null; // array of order ids in manual order
 var osrmCooldownUntil=0;
 var TRAFFIC_FACTOR=1.5; // +50%
+var customWaypoints=[]; // {id,name,address,lat,lng,slotStart,slotEnd,kg,isPickup}
+var wpIdCounter=0;
+function addWaypoint(){
+  wpIdCounter++;
+  customWaypoints.push({id:'wp_'+wpIdCounter,name:'',address:'',lat:null,lng:null,slotStart:8*60+30,slotEnd:12*60+30,kg:0,isPickup:false});
+  renderRoute();
+}
+function removeWaypoint(wpId){
+  customWaypoints=customWaypoints.filter(function(w){return w.id!==wpId;});
+  if(currentRouteOrder)currentRouteOrder=currentRouteOrder.filter(function(id){return id!==wpId;});
+  renderRoute();
+}
 
 // Parse timeslot string to {start:minutes, end:minutes} from midnight
 function parseSlotTimes(order){
@@ -2280,6 +2308,7 @@ function parseSlotTimes(order){
 }
 
 function calcUnloadMin(order){
+  if(order._isWaypoint){var wkg=order._wpData?order._wpData.kg:0;if(wkg<=100)return 5;return 5+Math.ceil((wkg-100)/100)*3;}
   var kg=0;order.products.forEach(function(p){if(!p.isPoli)kg+=p.colli*10;});
   if(kg<=100)return 5;
   return 5+Math.ceil((kg-100)/100)*3;
@@ -2287,6 +2316,12 @@ function calcUnloadMin(order){
 
 function minutesToHHMM(m){var h=Math.floor(m/60);var mm=Math.round(m%60);return(h<10?'0':'')+h+':'+(mm<10?'0':'')+mm;}
 
+function waypointToOrder(wp){
+  return{id:wp.id,customer:wp.name||'Tappa',products:[],address:wp.address||'',lat:wp.lat,lng:wp.lng,
+    timeslot:minutesToHHMM(wp.slotStart)+'-'+minutesToHHMM(wp.slotEnd),zone:'_WP_',isSede:false,isNP:false,
+    total:0,instructions:'',note:'',driverName:'',orderStatus:'',splitPart:null,splitTotal:null,
+    _isWaypoint:true,_wpData:wp,_customSlot:null};
+}
 function getRouteOrders(){
   var selectedZone=document.getElementById('routeZoneSelect').value;
   var rPeriod='all';
@@ -2296,17 +2331,20 @@ function getRouteOrders(){
     return o.zone===selectedZone;
   });
   if(rPeriod!=='all')zoneOrders=zoneOrders.filter(function(o){return getTimePeriod(o)===rPeriod;});
+  // Add custom waypoints as fake orders
+  var wpOrders=customWaypoints.map(waypointToOrder);
   // Apply manual order if exists
   if(currentRouteOrder&&currentRouteOrder.length>0){
-    var orderMap={};zoneOrders.forEach(function(o){orderMap[o.id]=o;});
+    var allItems={};zoneOrders.forEach(function(o){allItems[o.id]=o;});
+    wpOrders.forEach(function(o){allItems[o.id]=o;});
     var ordered=[];
-    currentRouteOrder.forEach(function(id){if(orderMap[id]){ordered.push(orderMap[id]);delete orderMap[id];}});
-    Object.keys(orderMap).forEach(function(id){ordered.push(orderMap[id]);});
+    currentRouteOrder.forEach(function(id){if(allItems[id]){ordered.push(allItems[id]);delete allItems[id];}});
+    Object.keys(allItems).forEach(function(id){ordered.push(allItems[id]);});
     return ordered;
   }
-  // Default: sort by timeslot
+  // Default: zone orders sorted by timeslot, then waypoints at end
   zoneOrders.sort(function(a,b){return(a.timeslot||'').localeCompare(b.timeslot||'');});
-  return zoneOrders;
+  return zoneOrders.concat(wpOrders);
 }
 
 var departureCoords={lat:45.3833,lng:9.2167};
@@ -2436,13 +2474,21 @@ function renderRoute(){
   // Numbered markers
   routeOrders.forEach(function(o,idx){
     if(!o.lat||!o.lng)return;
+    var isWp=!!o._isWaypoint;
     var period=getTimePeriod(o);
     var isLate=etaPerOrder[o.id]&&etaPerOrder[o.id].eta>etaPerOrder[o.id].slot.end;
-    var bgColor=isLate?'#dc2626':zoneColor;
-    var numHtml='<div style="width:20px;height:20px;background:'+bgColor+';border:2px solid #fff;border-radius:'+(period==='pm'?'3px':'50%')+';color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)">'+(idx+1)+'</div>';
+    var baseColor=isLate?'#dc2626':zoneColor;
+    var numHtml;
+    if(isWp){
+      var wpd=o._wpData;
+      numHtml='<div style="width:20px;height:20px;background:#fff;border:2px solid '+baseColor+';border-radius:'+(wpd&&wpd.isPickup?'3px':'50%')+';color:'+baseColor+';font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)">'+(idx+1)+'</div>';
+    }else{
+      numHtml='<div style="width:20px;height:20px;background:'+baseColor+';border:2px solid #fff;border-radius:'+(period==='pm'?'3px':'50%')+';color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)">'+(idx+1)+'</div>';
+    }
     var marker=L.marker([o.lat,o.lng],{icon:L.divIcon({className:'',html:numHtml,iconSize:[22,22],iconAnchor:[11,11]})});
     marker.addTo(routeMap);
-    marker.bindPopup('<b>#'+(idx+1)+'</b> ETA: '+minutesToHHMM(etaPerOrder[o.id]?etaPerOrder[o.id].eta:0)+'<br>'+buildPopupContent(o),{maxWidth:300});
+    var popupText='<b>#'+(idx+1)+'</b> '+(isWp?(o._wpData.isPickup?'RITIRO':'TAPPA')+': '+(o._wpData.name||''):'ETA: '+minutesToHHMM(etaPerOrder[o.id]?etaPerOrder[o.id].eta:0)+'<br>'+buildPopupContent(o));
+    marker.bindPopup(popupText,{maxWidth:300});
     marker._orderId=o.id;marker.on('click',function(){highlightRouteOrder(o.id);});
     routeMarkers.push(marker);
   });
@@ -2564,12 +2610,21 @@ function applyOSRMResult(legs,dep,zoneColor,allOrders){
   // Numbered markers
   final.forEach(function(o,idx){
     if(!o.lat||!o.lng)return;
+    var isWp=!!o._isWaypoint;
     var period=getTimePeriod(o);
     var isLate=etaPerOrder[o.id]&&etaPerOrder[o.id].eta>etaPerOrder[o.id].slot.end;
-    var bgColor=isLate?'#dc2626':zoneColor;
-    var numHtml='<div style="width:20px;height:20px;background:'+bgColor+';border:2px solid #fff;border-radius:'+(period==='pm'?'3px':'50%')+';color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)">'+(idx+1)+'</div>';
+    var baseColor=isLate?'#dc2626':zoneColor;
+    var numHtml;
+    if(isWp){
+      var wpd=o._wpData;
+      numHtml='<div style="width:20px;height:20px;background:#fff;border:2px solid '+baseColor+';border-radius:'+(wpd&&wpd.isPickup?'3px':'50%')+';color:'+baseColor+';font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)">'+(idx+1)+'</div>';
+    }else{
+      numHtml='<div style="width:20px;height:20px;background:'+baseColor+';border:2px solid #fff;border-radius:'+(period==='pm'?'3px':'50%')+';color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.3)">'+(idx+1)+'</div>';
+    }
     var marker=L.marker([o.lat,o.lng],{icon:L.divIcon({className:'',html:numHtml,iconSize:[22,22],iconAnchor:[11,11]})});
-    marker.addTo(routeMap);marker.bindPopup('<b>#'+(idx+1)+'</b> ETA: '+minutesToHHMM(etaPerOrder[o.id]?etaPerOrder[o.id].eta:0)+'<br>'+buildPopupContent(o),{maxWidth:300});
+    marker.addTo(routeMap);
+    var popupText='<b>#'+(idx+1)+'</b> '+(isWp?(o._wpData.isPickup?'RITIRO':'TAPPA')+': '+(o._wpData.name||''):'ETA: '+minutesToHHMM(etaPerOrder[o.id]?etaPerOrder[o.id].eta:0)+'<br>'+buildPopupContent(o));
+    marker.bindPopup(popupText,{maxWidth:300});
     marker._orderId=o.id;marker.on('click',function(){highlightRouteOrder(o.id);});routeMarkers.push(marker);
   });
 
@@ -2598,9 +2653,11 @@ function buildRouteList(orderedList,zoneColor,etaPerOrder){
   var dragSrcIdx=null;
 
   orderedList.forEach(function(o,idx){
+    var isWp=!!o._isWaypoint;
+    var wp=isWp?o._wpData:null;
     var eta=etaPerOrder[o.id];
     var isLate=eta&&eta.eta>eta.slot.end;
-    var row=el('div',{className:'route-order'+(isLate?' late':''),draggable:'true','data-order-id':o.id,'data-idx':String(idx)});
+    var row=el('div',{className:'route-order'+(isLate?' late':'')+(isWp?' waypoint':'')+(isWp&&wp.isPickup?' pickup':''),draggable:'true','data-order-id':o.id,'data-idx':String(idx)});
 
     // Drag & drop handlers
     row.addEventListener('dragstart',function(e){dragSrcIdx=idx;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
@@ -2613,7 +2670,6 @@ function buildRouteList(orderedList,zoneColor,etaPerOrder){
       var targetIdx=idx;
       var rect=row.getBoundingClientRect();
       if(e.clientY>rect.top+rect.height/2)targetIdx++;
-      // Reorder
       var item=orderedList.splice(dragSrcIdx,1)[0];
       if(targetIdx>dragSrcIdx)targetIdx--;
       orderedList.splice(targetIdx,0,item);
@@ -2624,38 +2680,112 @@ function buildRouteList(orderedList,zoneColor,etaPerOrder){
 
     // Click to highlight on map
     row.addEventListener('click',function(e){
-      if(e.target.tagName==='INPUT')return;
+      if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='BUTTON')return;
       routeMarkers.forEach(function(m){if(m._orderId===o.id){m.openPopup();if(m._icon)m._icon.style.transform+=' scale(1.5)';}});
       list.querySelectorAll('.route-order').forEach(function(r){r.classList.remove('highlighted');});
       row.classList.add('highlighted');
       setTimeout(function(){row.classList.remove('highlighted');routeMarkers.forEach(function(m){if(m._orderId===o.id&&m._icon)m._icon.style.transform=m._icon.style.transform.replace(' scale(1.5)','');});},4000);
     });
 
-    var period=getTimePeriod(o);
-    var numBg=isLate?'#dc2626':zoneColor;
-    row.appendChild(el('div',{className:'ro-num',style:{background:numBg},textContent:String(idx+1)}));
-    var info=el('div',{className:'ro-info'});
-    var line1=el('div',{className:'ro-line1'});
-    line1.appendChild(el('span',{className:'ts-badge '+(period==='pm'?'pm':'am'),textContent:period==='pm'?'PM':'AM'}));
-    if(o.splitPart)line1.appendChild(el('span',{className:'split-badge',textContent:o.splitPart+'/'+o.splitTotal}));
-    line1.appendChild(el('span',{className:'ro-customer',textContent:o.customer}));
-    var prodStr=o.products.map(function(p){return'['+p.quantity+'x'+p.abbr+']';}).join('+');
-    line1.appendChild(el('span',{className:'ro-prods',textContent:prodStr}));
-    if(eta){
-      line1.appendChild(el('span',{className:'ro-eta'+(isLate?' late':''),textContent:'ETA '+minutesToHHMM(eta.eta)}));
-      if(isLate)line1.appendChild(el('span',{className:'ro-delay',textContent:'R'}));
+    if(isWp){
+      // --- WAYPOINT ROW: inline editable form ---
+      var numBg=isLate?'#dc2626':zoneColor;
+      row.appendChild(el('div',{className:'ro-num',style:{background:'#fff',color:numBg,border:'2px solid '+numBg},textContent:String(idx+1)}));
+      var info=el('div',{className:'ro-info',style:{flex:'1'}});
+      // Line 1: type badge + name + kg + delete
+      var line1=el('div',{className:'ro-line1',style:{gap:'4px'}});
+      var typeSel=el('select',{style:{fontSize:'10px',padding:'1px 3px',border:'1px solid #ddd',borderRadius:'3px'}});
+      typeSel.appendChild(el('option',{value:'delivery',textContent:'Consegna'}));
+      typeSel.appendChild(el('option',{value:'pickup',textContent:'Ritiro'}));
+      typeSel.value=wp.isPickup?'pickup':'delivery';
+      typeSel.addEventListener('change',function(){wp.isPickup=typeSel.value==='pickup';renderRoute();});
+      line1.appendChild(typeSel);
+      var nameInp=el('input',{type:'text',value:wp.name,placeholder:'Nome / riferimento',style:{flex:'1',padding:'2px 6px',border:'1px solid #ddd',borderRadius:'3px',fontSize:'11px'}});
+      nameInp.addEventListener('change',function(){wp.name=nameInp.value;});
+      nameInp.addEventListener('blur',function(){wp.name=nameInp.value;});
+      line1.appendChild(nameInp);
+      line1.appendChild(el('span',{style:{fontSize:'10px',color:'#666'},textContent:'kg:'}));
+      var kgInp=el('input',{type:'number',min:'0',value:String(wp.kg),style:{width:'45px',padding:'2px 4px',border:'1px solid #ddd',borderRadius:'3px',fontSize:'10px'}});
+      kgInp.addEventListener('change',function(){wp.kg=parseInt(kgInp.value)||0;});
+      line1.appendChild(kgInp);
+      if(eta)line1.appendChild(el('span',{className:'ro-eta'+(isLate?' late':''),textContent:'ETA '+minutesToHHMM(eta.eta)}));
+      var delBtn=el('button',{className:'btn-split',title:'Rimuovi tappa',textContent:'✕',style:{marginLeft:'4px',color:'#dc2626',cursor:'pointer',border:'none',background:'none',fontSize:'13px',fontWeight:'700'}});
+      delBtn.addEventListener('click',function(e){e.stopPropagation();removeWaypoint(wp.id);});
+      line1.appendChild(delBtn);
+      info.appendChild(line1);
+      // Line 2: address with autocomplete + slot
+      var line2=el('div',{style:{display:'flex',gap:'4px',alignItems:'center',position:'relative'}});
+      var addrWrap=el('div',{style:{flex:'1',position:'relative'}});
+      var addrInp=el('input',{type:'text',value:wp.address,placeholder:'Indirizzo...',style:{width:'100%',padding:'2px 6px',border:'1px solid #ddd',borderRadius:'3px',fontSize:'11px',boxSizing:'border-box'}});
+      var addrDrop=el('div',{className:'wp-autocomplete',style:{display:'none'}});
+      addrWrap.appendChild(addrInp);addrWrap.appendChild(addrDrop);
+      // Autocomplete logic
+      var wpTimer=null;
+      addrInp.addEventListener('input',function(){
+        clearTimeout(wpTimer);
+        var q=addrInp.value.trim();
+        if(q.length<4){addrDrop.style.display='none';return;}
+        wpTimer=setTimeout(function(){
+          geocodeSearchNominatim(q).then(function(results){
+            addrDrop.innerHTML='';
+            if(!results||results.length===0){addrDrop.style.display='none';return;}
+            results.forEach(function(r){
+              var item=document.createElement('div');
+              item.className='wp-autocomplete-item';
+              item.textContent=r.display_name;
+              item.addEventListener('mousedown',function(ev){
+                ev.preventDefault();
+                wp.address=r.display_name;wp.lat=parseFloat(r.lat);wp.lng=parseFloat(r.lon);
+                addrInp.value=r.display_name;addrDrop.style.display='none';
+                addrInp.style.borderColor='#22c55e';addrInp.style.color='#166534';
+                renderRoute();
+              });
+              addrDrop.appendChild(item);
+            });
+            addrDrop.style.display='block';
+          });
+        },400);
+      });
+      addrInp.addEventListener('blur',function(){setTimeout(function(){addrDrop.style.display='none';},200);wp.address=addrInp.value;});
+      if(wp.lat&&wp.lng){addrInp.style.borderColor='#22c55e';addrInp.style.color='#166534';}
+      line2.appendChild(addrWrap);
+      var slotEdit=el('div',{className:'ro-slot-edit'});
+      var sInp=el('input',{type:'time',value:minutesToHHMM(wp.slotStart)});
+      var eInp=el('input',{type:'time',value:minutesToHHMM(wp.slotEnd)});
+      sInp.addEventListener('change',function(){var p=sInp.value.split(':');wp.slotStart=parseInt(p[0])*60+parseInt(p[1]);renderRoute();});
+      eInp.addEventListener('change',function(){var p=eInp.value.split(':');wp.slotEnd=parseInt(p[0])*60+parseInt(p[1]);renderRoute();});
+      slotEdit.appendChild(sInp);slotEdit.appendChild(document.createTextNode('-'));slotEdit.appendChild(eInp);
+      line2.appendChild(slotEdit);
+      info.appendChild(line2);
+      row.appendChild(info);
+    }else{
+      // --- REGULAR ORDER ROW ---
+      var period=getTimePeriod(o);
+      var numBg=isLate?'#dc2626':zoneColor;
+      row.appendChild(el('div',{className:'ro-num',style:{background:numBg,color:'#fff'},textContent:String(idx+1)}));
+      var info=el('div',{className:'ro-info'});
+      var line1=el('div',{className:'ro-line1'});
+      line1.appendChild(el('span',{className:'ts-badge '+(period==='pm'?'pm':'am'),textContent:period==='pm'?'PM':'AM'}));
+      if(o.splitPart)line1.appendChild(el('span',{className:'split-badge',textContent:o.splitPart+'/'+o.splitTotal}));
+      line1.appendChild(el('span',{className:'ro-customer',textContent:o.customer}));
+      var prodStr=o.products.map(function(p){return'['+p.quantity+'x'+p.abbr+']';}).join('+');
+      line1.appendChild(el('span',{className:'ro-prods',textContent:prodStr}));
+      if(eta){
+        line1.appendChild(el('span',{className:'ro-eta'+(isLate?' late':''),textContent:'ETA '+minutesToHHMM(eta.eta)}));
+        if(isLate)line1.appendChild(el('span',{className:'ro-delay',textContent:'R'}));
+      }
+      info.appendChild(line1);
+      var line2=el('div',{style:{display:'flex',gap:'6px',alignItems:'center'}});
+      line2.appendChild(el('span',{className:'ro-line2',style:{flex:'1'},title:o.address,textContent:o.address}));
+      var slot=parseSlotTimes(o);
+      var slotEdit=el('div',{className:'ro-slot-edit'});
+      var startInp=el('input',{type:'time',value:minutesToHHMM(slot.start),onChange:function(){o._customSlot=startInp.value+'-'+endInp.value;renderRoute();}});
+      var endInp=el('input',{type:'time',value:minutesToHHMM(slot.end),onChange:function(){o._customSlot=startInp.value+'-'+endInp.value;renderRoute();}});
+      slotEdit.appendChild(startInp);slotEdit.appendChild(document.createTextNode('-'));slotEdit.appendChild(endInp);
+      line2.appendChild(slotEdit);
+      info.appendChild(line2);
+      row.appendChild(info);
     }
-    info.appendChild(line1);
-    var line2=el('div',{style:{display:'flex',gap:'6px',alignItems:'center'}});
-    line2.appendChild(el('span',{className:'ro-line2',style:{flex:'1'},title:o.address,textContent:o.address}));
-    var slot=parseSlotTimes(o);
-    var slotEdit=el('div',{className:'ro-slot-edit'});
-    var startInp=el('input',{type:'time',value:minutesToHHMM(slot.start),onChange:function(){o._customSlot=startInp.value+'-'+endInp.value;renderRoute();}});
-    var endInp=el('input',{type:'time',value:minutesToHHMM(slot.end),onChange:function(){o._customSlot=startInp.value+'-'+endInp.value;renderRoute();}});
-    slotEdit.appendChild(startInp);slotEdit.appendChild(document.createTextNode('-'));slotEdit.appendChild(endInp);
-    line2.appendChild(slotEdit);
-    info.appendChild(line2);
-    row.appendChild(info);
     list.appendChild(row);
   });
 }
