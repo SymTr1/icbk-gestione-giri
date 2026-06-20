@@ -158,6 +158,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .ts-edit{display:flex;gap:1px;align-items:center;font-size:10px;}
 .ts-edit input[type="time"]{padding:1px 2px;border:1px solid #bbb;border-radius:3px;font-size:10px;width:58px;}
 .ts-edited{color:#2563eb;font-weight:600;}
+.dep-autocomplete{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-top:none;border-radius:0 0 6px 6px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:50;max-height:200px;overflow-y:auto;}
+.dep-autocomplete-item{padding:6px 10px;font-size:11px;cursor:pointer;border-bottom:1px solid #f0f0f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dep-autocomplete-item:hover,.dep-autocomplete-item.selected{background:#e8f0fe;color:#1a56db;}
+.dep-autocomplete-item:last-child{border-bottom:none;}
+.dep-confirmed{border-color:#22c55e !important;color:#166534 !important;font-weight:500;}
+.dep-searching{border-color:#f59e0b !important;}
 .col-driver{width:70px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .col-status{width:22px;text-align:center;}
 .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
@@ -360,7 +366,10 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
             </div>
             <div style="display:flex;gap:4px;align-items:center;font-size:11px">
               <span style="color:#666">Partenza:</span>
-              <input type="text" id="routeDeparture" value="Via Eugenio Montale 29, Opera (MI)" style="flex:1;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;color:#666">
+              <div style="flex:1;position:relative" id="depWrapper">
+                <input type="text" id="routeDeparture" value="Via Eugenio Montale 29, Opera (MI)" style="width:100%;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;color:#666;box-sizing:border-box" autocomplete="off">
+                <div id="depAutocomplete" class="dep-autocomplete" style="display:none"></div>
+              </div>
               <span style="color:#666">ore</span>
               <input type="time" id="routeDepartureTime" value="08:45" style="padding:3px 4px;border:1px solid #ddd;border-radius:4px;font-size:11px;width:70px">
             </div>
@@ -2170,6 +2179,57 @@ function initRouteMap(){
   document.getElementById('routeDepartureTime').addEventListener('change',function(){renderRoute();});
   document.getElementById('routeShowZones').addEventListener('change',function(){renderRoute();});
   document.getElementById('btnRouting').addEventListener('click',function(){runOSRMRouting();});
+
+  // Departure autocomplete + geocoding
+  var depInput=document.getElementById('routeDeparture');
+  var depDrop=document.getElementById('depAutocomplete');
+  var depTimer=null,depSelectedIdx=-1;
+  // Geocode default departure on init
+  geocodeDeparture(depInput.value);
+
+  depInput.addEventListener('input',function(){
+    depInput.classList.remove('dep-confirmed');
+    depInput.classList.add('dep-searching');
+    clearTimeout(depTimer);
+    var q=depInput.value.trim();
+    if(q.length<4){depDrop.style.display='none';return;}
+    depTimer=setTimeout(function(){
+      geocodeSearchNominatim(q).then(function(results){
+        depDrop.innerHTML='';depSelectedIdx=-1;
+        if(!results||results.length===0){depDrop.style.display='none';return;}
+        results.forEach(function(r,i){
+          var item=document.createElement('div');
+          item.className='dep-autocomplete-item';
+          item.textContent=r.display_name;
+          item.addEventListener('mousedown',function(e){
+            e.preventDefault();
+            depInput.value=r.display_name;
+            depDrop.style.display='none';
+            departureCoords={lat:parseFloat(r.lat),lng:parseFloat(r.lon)};
+            geocodeCache[r.display_name.toLowerCase().trim()]={lat:departureCoords.lat,lng:departureCoords.lng};
+            try{localStorage.setItem('geocodeCache',JSON.stringify(geocodeCache));}catch(ex){}
+            depInput.classList.remove('dep-searching');
+            depInput.classList.add('dep-confirmed');
+            renderRoute();
+          });
+          depDrop.appendChild(item);
+        });
+        depDrop.style.display='block';
+      });
+    },400);
+  });
+
+  depInput.addEventListener('keydown',function(e){
+    var items=depDrop.querySelectorAll('.dep-autocomplete-item');
+    if(!items.length)return;
+    if(e.key==='ArrowDown'){e.preventDefault();depSelectedIdx=Math.min(depSelectedIdx+1,items.length-1);items.forEach(function(it,i){it.classList.toggle('selected',i===depSelectedIdx);});}
+    else if(e.key==='ArrowUp'){e.preventDefault();depSelectedIdx=Math.max(depSelectedIdx-1,0);items.forEach(function(it,i){it.classList.toggle('selected',i===depSelectedIdx);});}
+    else if(e.key==='Enter'&&depSelectedIdx>=0){e.preventDefault();items[depSelectedIdx].dispatchEvent(new Event('mousedown'));}
+    else if(e.key==='Escape'){depDrop.style.display='none';}
+  });
+
+  depInput.addEventListener('blur',function(){setTimeout(function(){depDrop.style.display='none';},200);});
+  depInput.addEventListener('change',function(){geocodeDeparture(depInput.value);});
 }
 
 function updateRouteZoneSelect(){
@@ -2237,14 +2297,21 @@ function getRouteOrders(){
   return zoneOrders;
 }
 
+var departureCoords={lat:45.3833,lng:9.2167};
 function getDeparture(){
-  var depLat=45.3833,depLng=9.2167;
-  var depCache=geocodeCache[(document.getElementById('routeDeparture').value||'').toLowerCase().trim()];
-  if(depCache){depLat=depCache.lat;depLng=depCache.lng;}
   var departureMinutes=8*60+45;
   var depTimeVal=document.getElementById('routeDepartureTime').value;
   if(depTimeVal){var dp=depTimeVal.split(':');departureMinutes=parseInt(dp[0])*60+parseInt(dp[1]);}
-  return{lat:depLat,lng:depLng,time:departureMinutes};
+  return{lat:departureCoords.lat,lng:departureCoords.lng,time:departureMinutes};
+}
+function geocodeDeparture(address){
+  if(!address||address.length<5)return;
+  var key=address.toLowerCase().trim();
+  if(geocodeCache[key]){departureCoords={lat:geocodeCache[key].lat,lng:geocodeCache[key].lng};renderRoute();return;}
+  geocodeNominatim(address).then(function(r){
+    if(r){geocodeCache[key]=r;departureCoords={lat:r.lat,lng:r.lng};try{localStorage.setItem('geocodeCache',JSON.stringify(geocodeCache));}catch(e){}renderRoute();}
+    else{geocodeGoogle(address).then(function(g){if(g){geocodeCache[key]=g;departureCoords={lat:g.lat,lng:g.lng};try{localStorage.setItem('geocodeCache',JSON.stringify(geocodeCache));}catch(e){}renderRoute();}});}
+  });
 }
 
 function renderRoute(){
