@@ -70,8 +70,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .toolbar input[type="text"]{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;width:240px;}
 .btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;transition:all .15s;}.btn:hover{border-color:var(--accent);}.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}.btn-danger{background:var(--red);border-color:var(--red);color:#fff;}.btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
 .map-wrapper{height:500px;position:relative;}
-#mainMap{width:100%;height:100%;}
-#mapConsegne,#mapZone{width:100%;height:100%;}
+#mainMap,#splitMapDiv{width:100%;height:100%;isolation:isolate;z-index:0;}
+#mapConsegne,#mapZone{width:100%;height:100%;isolation:isolate;z-index:0;}
 .dual-view{display:none;}
 #panel-giri.dual-mode .dual-view{display:block;}
 #panel-giri.dual-mode .single-view{display:none;}
@@ -309,7 +309,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 
     <!-- PAGE: Mappa -->
     <div class="tab-panel" id="panel-mappa">
-      <div style="display:flex;gap:6px;padding:6px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center;flex-wrap:nowrap">
+      <div style="display:flex;gap:6px;padding:6px 14px;background:#fff;border-bottom:1px solid #e0e0e0;align-items:center;flex-wrap:nowrap;position:relative;z-index:10">
         <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="mapShowZones" checked> Zone</label>
         <span style="border-left:1px solid #ddd;height:14px"></span>
         <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="radio" name="mapPeriod" value="all" checked> Tutti</label>
@@ -320,7 +320,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       </div>
       <!-- Default: map on top, orders below -->
       <div id="mapDefaultView" style="flex:1;display:flex;flex-direction:column;overflow-y:auto">
-        <div style="height:50vh;min-height:350px;flex-shrink:0;position:relative"><div id="mainMap" style="position:absolute;top:0;left:0;right:0;bottom:0"></div></div>
+        <div style="height:50vh;min-height:350px;flex-shrink:0;position:relative;z-index:1;isolation:isolate"><div id="mainMap" style="position:absolute;top:0;left:0;right:0;bottom:0"></div></div>
         <div class="zone-filter-bar" id="zfMap"></div>
         <div id="mapContainer"></div>
       </div>
@@ -334,7 +334,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
             <div id="mapSplitList2" style="flex:1;overflow-y:auto"></div>
           </div>
           <div id="mapSplitResize" style="width:5px;background:#e0e0e0;cursor:col-resize;flex-shrink:0"></div>
-          <div style="flex:4;min-width:280px;position:relative"><div id="splitMapDiv" style="position:absolute;top:0;left:0;right:0;bottom:0"></div></div>
+          <div style="flex:4;min-width:280px;position:relative;z-index:1;isolation:isolate"><div id="splitMapDiv" style="position:absolute;top:0;left:0;right:0;bottom:0"></div></div>
         </div>
       </div>
     </div>
